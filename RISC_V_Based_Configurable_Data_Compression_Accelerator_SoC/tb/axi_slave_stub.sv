@@ -1,7 +1,7 @@
 // =============================================================================
 // axi_slave_stub.sv
 //
-// PURPOSE : Lightweight AXI4 slave stub for tb_axi_interconnect_wrap_2x7.
+// PURPOSE : Lightweight AXI4 slave stub for tb_axi_interconnect_wrap_3x8.
 //           - Stores writes into a small internal memory (write-then-readback)
 //           - Logs every AW/W/AR beat
 //           - Returns OKAY (2'b00) for all accesses
@@ -18,7 +18,7 @@
 //           (the memory write uses <=, so the new value appears at the NEXT
 //           rising edge).  The testbench BFM now waits one clock after the
 //           B handshake before sampling data, but the stub itself needed no
-//           change for this — the fix is in the testbench axi_write task.
+//           change for this - the fix is in the testbench axi_write task.
 //
 // SIMULATOR : Synopsys VCS U-2023.03  (-full64 -sverilog)
 // =============================================================================
@@ -88,7 +88,7 @@ localparam MEM_ADDR_BITS = $clog2(MEM_DEPTH);
 localparam BYTE_BITS     = $clog2(DATA_WIDTH/8);
 
 // ---------------------------------------------------------------------------
-// Internal memory — sole driver: the write always_ff block
+// Internal memory - sole driver: the write always_ff block
 // ---------------------------------------------------------------------------
 reg [DATA_WIDTH-1:0] mem [0:MEM_DEPTH-1];
 
@@ -280,6 +280,8 @@ always_ff @(posedge clk or posedge rst) begin
         case (rd_state)
 
             RD_IDLE: begin
+                axi_rvalid <= 1'b0;
+                axi_rlast  <= 1'b0;
                 if (axi_arvalid) begin
                     axi_arready  <= 1'b1;
                     rd_id_q      <= axi_arid;
@@ -295,7 +297,7 @@ always_ff @(posedge clk or posedge rst) begin
             end
 
             RD_RESP: begin
-                if (!axi_rvalid || axi_rready) begin
+                if (!axi_rvalid) begin
                     ridx       = rd_beat_addr[MEM_ADDR_BITS+BYTE_BITS-1 : BYTE_BITS];
                     axi_rdata  <= mem[ridx];
                     axi_rid    <= rd_id_q;
@@ -305,11 +307,14 @@ always_ff @(posedge clk or posedge rst) begin
                     $display("[%0t] SLAVE%0d  R  data=%0h addr=%08h last=%0b",
                              $time, SLAVE_ID, mem[ridx],
                              rd_beat_addr, (rd_len_q == 8'd0));
-                    if (rd_len_q == 8'd0)
-                        rd_state <= RD_IDLE;
-                    else begin
+                end else if (axi_rvalid && axi_rready) begin
+                    if (rd_len_q == 8'd0) begin
+                        axi_rvalid <= 1'b0;
+                        rd_state   <= RD_IDLE;
+                    end else begin
                         rd_len_q     <= rd_len_q - 8'd1;
                         rd_beat_addr <= incr_addr(rd_beat_addr, rd_arsize_q);
+                        axi_rvalid   <= 1'b0;
                     end
                 end
             end
