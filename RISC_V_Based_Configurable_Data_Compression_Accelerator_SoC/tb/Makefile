@@ -1,18 +1,18 @@
 # =============================================================================
-# Makefile — VCS build and run for tb_axi_interconnect_wrap_2x7
+# Makefile - VCS build and run for tb_axi_interconnect_wrap_3x8
 #
 # Run from:  <repo>/tb/
 #
-#   make          — compile + simulate (produces dump.fsdb)
-#   make compile  — compile only
-#   make sim      — simulate only (requires prior compile)
-#   make waves    — open dump.fsdb in Verdi
-#   make clean    — remove all generated artefacts
-#   make help     — show copy-pasteable one-liners
+#   make          - compile + simulate (produces dump.fsdb)
+#   make compile  - compile only
+#   make sim      - simulate only (requires prior compile)
+#   make waves    - open dump.fsdb in Verdi
+#   make clean    - remove all generated artefacts
+#   make help     - show copy-pasteable one-liners
 #
 # Prerequisites
-#   • VCS   U-2023.03        at /home/student/snps_tools_target/vcs/U-2023.03
-#   • Verdi U-2023.03-SP1    at /home/student/snps_tools_target/verdi/U-2023.03-SP1
+#   - VCS   U-2023.03        at /home/student/snps_tools_target/vcs/U-2023.03
+#   - Verdi U-2023.03-SP1    at /home/student/snps_tools_target/verdi/U-2023.03-SP1
 #   Both paths are taken from the existing csrc/Makefile in this repo.
 # =============================================================================
 
@@ -23,7 +23,7 @@ VERDI_HOME  := /home/student/snps_tools_target/verdi/U-2023.03-SP1
 VCS         := $(VCS_HOME)/bin/vcs
 VERDI       := $(VERDI_HOME)/bin/verdi
 
-# ---------- FSDB PLI — exact paths from repo's csrc/Makefile SYSLIBS -------
+# ---------- FSDB PLI - exact paths from repo's csrc/Makefile SYSLIBS -------
 # SYSLIBS in csrc/Makefile contains:
 #   /home/student/snps_tools_target/verdi/U-2023.03-SP1/share/PLI/VCS/LINUX64/pli.a
 NOVAS_TAB   := $(VERDI_HOME)/share/PLI/VCS/LINUX64/novas.tab
@@ -32,7 +32,7 @@ NOVAS_PLI   := $(VERDI_HOME)/share/PLI/VCS/LINUX64/pli.a
 # ---------- filelist and output ---------------------------------------------
 FILELIST    := run.f
 SIMV        := simv
-TOP         := tb_axi_interconnect_wrap_2x7
+TOP         := tb_axi_interconnect_wrap_3x8
 FSDB        := dump.fsdb
 
 # ---------- VCS compile flags -----------------------------------------------
@@ -75,7 +75,7 @@ $(SIMV): run.f $(wildcard ../rtl/*.v) $(wildcard ./*.sv)
 	@echo "    -f $(FILELIST) -o $(SIMV)"
 	@echo ""
 	$(VCS) $(VCS_FLAGS) -f $(FILELIST) -o $(SIMV)
-	@echo "=== Compile done — binary: $(SIMV) ==="
+	@echo "=== Compile done - binary: $(SIMV) ==="
 
 # ---------- simulate ---------------------------------------------------------
 sim: $(SIMV)
@@ -85,7 +85,7 @@ sim: $(SIMV)
 	@echo ""
 	./$(SIMV) $(SIM_FLAGS)
 	@echo ""
-	@echo "=== Simulation done — waveform: $(FSDB) ==="
+	@echo "=== Simulation done - waveform: $(FSDB) ==="
 	@echo ""
 	@echo "--- Tail of sim.log ---"
 	@tail -25 sim.log

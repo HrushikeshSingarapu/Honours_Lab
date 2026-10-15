@@ -223,17 +223,17 @@ module tb_axi_interconnect_wrap_3x8;
     wire [3:0]            m``NN``_axi_awregion; \
     wire                  m``NN``_axi_awuser; \
     wire                  m``NN``_axi_awvalid; \
-    reg                   m``NN``_axi_awready; \
+    wire                  m``NN``_axi_awready; \
     wire [DATA_WIDTH-1:0] m``NN``_axi_wdata; \
     wire [STRB_WIDTH-1:0] m``NN``_axi_wstrb; \
     wire                  m``NN``_axi_wlast; \
     wire                  m``NN``_axi_wuser; \
     wire                  m``NN``_axi_wvalid; \
-    reg                   m``NN``_axi_wready; \
-    reg [ID_WIDTH-1:0]    m``NN``_axi_bid; \
-    reg [1:0]             m``NN``_axi_bresp; \
-    reg                   m``NN``_axi_buser; \
-    reg                   m``NN``_axi_bvalid; \
+    wire                  m``NN``_axi_wready; \
+    wire [ID_WIDTH-1:0]   m``NN``_axi_bid; \
+    wire [1:0]            m``NN``_axi_bresp; \
+    wire                  m``NN``_axi_buser; \
+    wire                  m``NN``_axi_bvalid; \
     wire                  m``NN``_axi_bready; \
     wire [ID_WIDTH-1:0]   m``NN``_axi_arid; \
     wire [ADDR_WIDTH-1:0] m``NN``_axi_araddr; \
@@ -247,13 +247,13 @@ module tb_axi_interconnect_wrap_3x8;
     wire [3:0]            m``NN``_axi_arregion; \
     wire                  m``NN``_axi_aruser; \
     wire                  m``NN``_axi_arvalid; \
-    reg                   m``NN``_axi_arready; \
-    reg [ID_WIDTH-1:0]    m``NN``_axi_rid; \
-    reg [DATA_WIDTH-1:0]  m``NN``_axi_rdata; \
-    reg [1:0]             m``NN``_axi_rresp; \
-    reg                   m``NN``_axi_rlast; \
-    reg                   m``NN``_axi_ruser; \
-    reg                   m``NN``_axi_rvalid; \
+    wire                  m``NN``_axi_arready; \
+    wire [ID_WIDTH-1:0]   m``NN``_axi_rid; \
+    wire [DATA_WIDTH-1:0] m``NN``_axi_rdata; \
+    wire [1:0]            m``NN``_axi_rresp; \
+    wire                  m``NN``_axi_rlast; \
+    wire                  m``NN``_axi_ruser; \
+    wire                  m``NN``_axi_rvalid; \
     wire                  m``NN``_axi_rready;
 
     `DECL_MPORT(00)
@@ -281,50 +281,47 @@ module tb_axi_interconnect_wrap_3x8;
      */
 
 `define INST_STUB(NN,SID) \
-    axi_slave_stub #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ID_WIDTH(ID_WIDTH)) \
-    stub_``NN`` ( \
-        .clk(clk), .rst(rst), \
-        .s_axi_awid(m``NN``_axi_awid), \
-        .s_axi_awaddr(m``NN``_axi_awaddr), \
-        .s_axi_awlen(m``NN``_axi_awlen), \
-        .s_axi_awsize(m``NN``_axi_awsize), \
-        .s_axi_awburst(m``NN``_axi_awburst), \
-        .s_axi_awlock(m``NN``_axi_awlock), \
-        .s_axi_awcache(m``NN``_axi_awcache), \
-        .s_axi_awprot(m``NN``_axi_awprot), \
-        .s_axi_awqos(m``NN``_axi_awqos), \
-        .s_axi_awregion(m``NN``_axi_awregion), \
-        .s_axi_awvalid(m``NN``_axi_awvalid), \
-        .s_axi_awready(m``NN``_axi_awready), \
-        .s_axi_wdata(m``NN``_axi_wdata), \
-        .s_axi_wstrb(m``NN``_axi_wstrb), \
-        .s_axi_wlast(m``NN``_axi_wlast), \
-        .s_axi_wvalid(m``NN``_axi_wvalid), \
-        .s_axi_wready(m``NN``_axi_wready), \
-        .s_axi_bid(m``NN``_axi_bid), \
-        .s_axi_bresp(m``NN``_axi_bresp), \
-        .s_axi_bvalid(m``NN``_axi_bvalid), \
-        .s_axi_bready(m``NN``_axi_bready), \
-        .s_axi_arid(m``NN``_axi_arid), \
-        .s_axi_araddr(m``NN``_axi_araddr), \
-        .s_axi_arlen(m``NN``_axi_arlen), \
-        .s_axi_arsize(m``NN``_axi_arsize), \
-        .s_axi_arburst(m``NN``_axi_arburst), \
-        .s_axi_arlock(m``NN``_axi_arlock), \
-        .s_axi_arcache(m``NN``_axi_arcache), \
-        .s_axi_arprot(m``NN``_axi_arprot), \
-        .s_axi_arqos(m``NN``_axi_arqos), \
-        .s_axi_arregion(m``NN``_axi_arregion), \
-        .s_axi_arvalid(m``NN``_axi_arvalid), \
-        .s_axi_arready(m``NN``_axi_arready), \
-        .s_axi_rid(m``NN``_axi_rid), \
-        .s_axi_rdata(m``NN``_axi_rdata), \
-        .s_axi_rresp(m``NN``_axi_rresp), \
-        .s_axi_rlast(m``NN``_axi_rlast), \
-        .s_axi_rvalid(m``NN``_axi_rvalid), \
-        .s_axi_rready(m``NN``_axi_rready), \
-        .write_count(write_count[SID]), \
-        .read_count(read_count[SID]) \
+    axi_slave_stub #( \
+        .DATA_WIDTH(DATA_WIDTH), \
+        .ADDR_WIDTH(ADDR_WIDTH), \
+        .STRB_WIDTH(STRB_WIDTH), \
+        .ID_WIDTH(ID_WIDTH), \
+        .SLAVE_ID(SID), \
+        .MEM_DEPTH(256) \
+    ) stub_``NN`` ( \
+        .clk(clk), \
+        .rst(rst), \
+        .axi_awid(m``NN``_axi_awid), \
+        .axi_awaddr(m``NN``_axi_awaddr), \
+        .axi_awlen(m``NN``_axi_awlen), \
+        .axi_awsize(m``NN``_axi_awsize), \
+        .axi_awburst(m``NN``_axi_awburst), \
+        .axi_awvalid(m``NN``_axi_awvalid), \
+        .axi_awready(m``NN``_axi_awready), \
+        .axi_wdata(m``NN``_axi_wdata), \
+        .axi_wstrb(m``NN``_axi_wstrb), \
+        .axi_wlast(m``NN``_axi_wlast), \
+        .axi_wvalid(m``NN``_axi_wvalid), \
+        .axi_wready(m``NN``_axi_wready), \
+        .axi_bid(m``NN``_axi_bid), \
+        .axi_bresp(m``NN``_axi_bresp), \
+        .axi_bvalid(m``NN``_axi_bvalid), \
+        .axi_bready(m``NN``_axi_bready), \
+        .axi_arid(m``NN``_axi_arid), \
+        .axi_araddr(m``NN``_axi_araddr), \
+        .axi_arlen(m``NN``_axi_arlen), \
+        .axi_arsize(m``NN``_axi_arsize), \
+        .axi_arburst(m``NN``_axi_arburst), \
+        .axi_arvalid(m``NN``_axi_arvalid), \
+        .axi_arready(m``NN``_axi_arready), \
+        .axi_rid(m``NN``_axi_rid), \
+        .axi_rdata(m``NN``_axi_rdata), \
+        .axi_rresp(m``NN``_axi_rresp), \
+        .axi_rlast(m``NN``_axi_rlast), \
+        .axi_rvalid(m``NN``_axi_rvalid), \
+        .axi_rready(m``NN``_axi_rready), \
+        .wr_txn_count(write_count[SID]), \
+        .rd_txn_count(read_count[SID]) \
     );
 
     `INST_STUB(00,0)
@@ -525,10 +522,62 @@ module tb_axi_interconnect_wrap_3x8;
         .s02_axi_rlast(s02_axi_rlast),
         .s02_axi_ruser(s02_axi_ruser),
         .s02_axi_rvalid(s02_axi_rvalid),
-        .s02_axi_rready(s02_axi_rready)
+        .s02_axi_rready(s02_axi_rready),
 
-        // M00-M07 connections continue exactly according
-        // to the wrapper port list.
+`define CONNECT_MPORT(NN) \
+        .m``NN``_axi_awid(m``NN``_axi_awid), \
+        .m``NN``_axi_awaddr(m``NN``_axi_awaddr), \
+        .m``NN``_axi_awlen(m``NN``_axi_awlen), \
+        .m``NN``_axi_awsize(m``NN``_axi_awsize), \
+        .m``NN``_axi_awburst(m``NN``_axi_awburst), \
+        .m``NN``_axi_awlock(m``NN``_axi_awlock), \
+        .m``NN``_axi_awcache(m``NN``_axi_awcache), \
+        .m``NN``_axi_awprot(m``NN``_axi_awprot), \
+        .m``NN``_axi_awqos(m``NN``_axi_awqos), \
+        .m``NN``_axi_awregion(m``NN``_axi_awregion), \
+        .m``NN``_axi_awuser(), \
+        .m``NN``_axi_awvalid(m``NN``_axi_awvalid), \
+        .m``NN``_axi_awready(m``NN``_axi_awready), \
+        .m``NN``_axi_wdata(m``NN``_axi_wdata), \
+        .m``NN``_axi_wstrb(m``NN``_axi_wstrb), \
+        .m``NN``_axi_wlast(m``NN``_axi_wlast), \
+        .m``NN``_axi_wuser(), \
+        .m``NN``_axi_wvalid(m``NN``_axi_wvalid), \
+        .m``NN``_axi_wready(m``NN``_axi_wready), \
+        .m``NN``_axi_bid(m``NN``_axi_bid), \
+        .m``NN``_axi_bresp(m``NN``_axi_bresp), \
+        .m``NN``_axi_buser(1'b0), \
+        .m``NN``_axi_bvalid(m``NN``_axi_bvalid), \
+        .m``NN``_axi_bready(m``NN``_axi_bready), \
+        .m``NN``_axi_arid(m``NN``_axi_arid), \
+        .m``NN``_axi_araddr(m``NN``_axi_araddr), \
+        .m``NN``_axi_arlen(m``NN``_axi_arlen), \
+        .m``NN``_axi_arsize(m``NN``_axi_arsize), \
+        .m``NN``_axi_arburst(m``NN``_axi_arburst), \
+        .m``NN``_axi_arlock(m``NN``_axi_arlock), \
+        .m``NN``_axi_arcache(m``NN``_axi_arcache), \
+        .m``NN``_axi_arprot(m``NN``_axi_arprot), \
+        .m``NN``_axi_arqos(m``NN``_axi_arqos), \
+        .m``NN``_axi_arregion(m``NN``_axi_arregion), \
+        .m``NN``_axi_aruser(), \
+        .m``NN``_axi_arvalid(m``NN``_axi_arvalid), \
+        .m``NN``_axi_arready(m``NN``_axi_arready), \
+        .m``NN``_axi_rid(m``NN``_axi_rid), \
+        .m``NN``_axi_rdata(m``NN``_axi_rdata), \
+        .m``NN``_axi_rresp(m``NN``_axi_rresp), \
+        .m``NN``_axi_rlast(m``NN``_axi_rlast), \
+        .m``NN``_axi_ruser(1'b0), \
+        .m``NN``_axi_rvalid(m``NN``_axi_rvalid), \
+        .m``NN``_axi_rready(m``NN``_axi_rready)
+
+        `CONNECT_MPORT(00),
+        `CONNECT_MPORT(01),
+        `CONNECT_MPORT(02),
+        `CONNECT_MPORT(03),
+        `CONNECT_MPORT(04),
+        `CONNECT_MPORT(05),
+        `CONNECT_MPORT(06),
+        `CONNECT_MPORT(07)
     );
 
 
@@ -646,13 +695,13 @@ module tb_axi_interconnect_wrap_3x8;
 
     task check;
         input condition;
-        input [1023:0] message;
+        input string message;
         begin
             tests = tests + 1;
 
             if (!condition) begin
                 errors = errors + 1;
-                $display("FAIL: %s", message);
+                $display("FAIL: %s (got rdata = 0x%08x, rresp = %0b)", message, rdata, rresp);
             end
             else begin
                 $display("PASS: %s", message);
@@ -763,6 +812,67 @@ module tb_axi_interconnect_wrap_3x8;
 
     /*
      * ================================================================
+     * AXI WRITE BURST - S00
+     * ================================================================
+     */
+
+    task axi_write_burst;
+        input [ADDR_WIDTH-1:0] addr;
+        input [7:0]            blen;
+        input [DATA_WIDTH-1:0] base_data;
+        input [STRB_WIDTH-1:0] strb;
+        input [ID_WIDTH-1:0]   id;
+        output [1:0]           bresp_out;
+        integer b;
+        begin
+            @(posedge clk);
+            s00_axi_awvalid <= 1'b1;
+            s00_axi_awid    <= id;
+            s00_axi_awaddr  <= addr;
+            s00_axi_awlen   <= blen;
+            s00_axi_awsize  <= 3'd2;
+            s00_axi_awburst <= 2'b01;
+            s00_axi_awlock  <= 1'b0;
+            s00_axi_awcache <= 4'h0;
+            s00_axi_awprot  <= 3'h0;
+            s00_axi_awqos   <= 4'h0;
+
+            while (!s00_axi_awready)
+                @(posedge clk);
+
+            @(posedge clk);
+            s00_axi_awvalid <= 1'b0;
+
+            for (b = 0; b <= blen; b = b + 1) begin
+                @(posedge clk);
+                s00_axi_wvalid = 1'b1;
+                s00_axi_wdata  = base_data + b;
+                s00_axi_wstrb  = strb;
+                s00_axi_wlast  = (b == blen);
+
+                while (!s00_axi_wready)
+                    @(posedge clk);
+            end
+
+            @(posedge clk);
+            s00_axi_wvalid = 1'b0;
+            s00_axi_wlast  = 1'b0;
+
+            s00_axi_bready <= 1'b1;
+            while (!s00_axi_bvalid)
+                @(posedge clk);
+
+            @(posedge clk);
+            bresp_out = s00_axi_bresp;
+            s00_axi_bready <= 1'b0;
+
+            idle_s00();
+        end
+    endtask
+
+
+    /*
+     * ================================================================
      * AXI READ - S00
      * ================================================================
      */
@@ -793,9 +903,8 @@ module tb_axi_interconnect_wrap_3x8;
 
             data = s00_axi_rdata;
             resp = s00_axi_rresp;
-
-            @(posedge clk);
             s00_axi_rready = 0;
+            @(posedge clk);
 
             idle_s00();
         end
@@ -834,9 +943,8 @@ module tb_axi_interconnect_wrap_3x8;
 
             data = s01_axi_rdata;
             resp = s01_axi_rresp;
-
-            @(posedge clk);
             s01_axi_rready = 0;
+            @(posedge clk);
 
             idle_s01();
         end
@@ -875,9 +983,8 @@ module tb_axi_interconnect_wrap_3x8;
 
             data = s02_axi_rdata;
             resp = s02_axi_rresp;
-
-            @(posedge clk);
             s02_axi_rready = 0;
+            @(posedge clk);
 
             idle_s02();
         end
@@ -1087,6 +1194,7 @@ module tb_axi_interconnect_wrap_3x8;
                  8'h53,
                  rdata,
                  rresp);
+        $display("DEBUG: IFU read got rdata=%08h, rresp=%0b", rdata, rresp);
 
         check(rresp == RESP_OKAY, "IFU read response");
         check(rdata == 32'hFACE_CAFE, "IFU read data");
@@ -1171,10 +1279,22 @@ module tb_axi_interconnect_wrap_3x8;
         $display("====================================================");
 
         /*
-         * The existing axi_write_burst task from your 2x7 TB
-         * should be copied here unchanged, with DataMem address
-         * M01_BASE + 0x300.
+         * 4-beat INCR burst write to DataMem, then read back and verify
          */
+        axi_write_burst(M01_BASE + 32'h300, 8'h03, 32'h5500_0000, 4'hF, 8'hA0, bresp);
+        check(bresp == RESP_OKAY, "4-beat burst write response");
+
+        wait_clks(2);
+
+        begin : g7_readback
+            integer b_idx;
+            for (b_idx = 0; b_idx < 4; b_idx = b_idx + 1) begin
+                axi_read(M01_BASE + 32'h300 + (4 * b_idx), 8'hA1 + b_idx, rdata, rresp);
+                check(rresp == RESP_OKAY, "Burst read response");
+                check(rdata == (32'h5500_0000 + b_idx), "Burst read data matches");
+            end
+        end
+        wait_clks(2);
 
 
         /*
@@ -1260,12 +1380,19 @@ module tb_axi_interconnect_wrap_3x8;
      * ================================================================
      */
 
+`ifndef __ICARUS__
     initial begin
         $fsdbDumpfile("dump.fsdb");
         $fsdbDumpvars(0, tb_axi_interconnect_wrap_3x8, "+all");
         $fsdbDumpSVA(0, tb_axi_interconnect_wrap_3x8);
         $fsdbDumpMDA(0, tb_axi_interconnect_wrap_3x8);
     end
+`else
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, tb_axi_interconnect_wrap_3x8);
+    end
+`endif
 
 
     /*
