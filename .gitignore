@@ -1,0 +1,27 @@
+# Simulation binaries and build directories
+*.vvp
+simv
+simv.daidir/
+csrc/
+AN.DB/
+
+# ModelSim / QuestaSim build directories & logs
+msim_work/
+work/
+transcript
+*.wlf
+modelsim.ini
+
+# Waveform dumps
+*.vcd
+*.fsdb
+*.fsdb.*
+*.vpd
+
+# Simulation logs and diagnostics
+compile.log
+sim.log
+sim.err
+ucli.key
+novas_dump.log
+vc_hdrs.h
