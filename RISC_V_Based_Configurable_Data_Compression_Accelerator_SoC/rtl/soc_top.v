@@ -186,7 +186,8 @@ module soc_top #(
     output wire [31:0] gpio_oe,
     output wire        gpio_irq,
     output wire        timer_irq,
-    output wire        rle_irq
+    output wire        rle_irq,
+    output wire        dma_irq
 );
 
     // -------------------------------------------------------------------------
@@ -445,7 +446,50 @@ module soc_top #(
     );
 
     // =========================================================================
-    // AXI 3×8 Interconnect
+    // DMA Master (S03) wires connecting to AXI Interconnect
+    // =========================================================================
+    wire        dma_awvalid, dma_awready;
+    wire [7:0]  dma_awid;
+    wire [31:0] dma_awaddr;
+    wire [7:0]  dma_awlen;
+    wire [2:0]  dma_awsize;
+    wire [1:0]  dma_awburst;
+    wire        dma_awlock;
+    wire [3:0]  dma_awcache;
+    wire [2:0]  dma_awprot;
+    wire [3:0]  dma_awqos;
+    wire [3:0]  dma_awregion;
+    wire        dma_awuser;
+    wire        dma_wvalid, dma_wready;
+    wire [31:0] dma_wdata;
+    wire [3:0]  dma_wstrb;
+    wire        dma_wlast;
+    wire        dma_wuser;
+    wire        dma_bvalid, dma_bready;
+    wire [1:0]  dma_bresp;
+    wire [7:0]  dma_bid;
+    wire        dma_buser;
+    wire        dma_arvalid, dma_arready;
+    wire [7:0]  dma_arid;
+    wire [31:0] dma_araddr;
+    wire [7:0]  dma_arlen;
+    wire [2:0]  dma_arsize;
+    wire [1:0]  dma_arburst;
+    wire        dma_arlock;
+    wire [3:0]  dma_arcache;
+    wire [2:0]  dma_arprot;
+    wire [3:0]  dma_arqos;
+    wire [3:0]  dma_arregion;
+    wire        dma_aruser;
+    wire        dma_rvalid, dma_rready;
+    wire [7:0]  dma_rid;
+    wire [31:0] dma_rdata;
+    wire [1:0]  dma_rresp;
+    wire        dma_rlast;
+    wire        dma_ruser;
+
+    // =========================================================================
+    // AXI 4×8 Interconnect
     // Slave port wires (m00–m07 = peripheral-facing outputs of interconnect)
     // =========================================================================
 
@@ -626,9 +670,9 @@ module soc_top #(
     wire [1:0]  m07_rresp;  wire        m07_rlast;
 
     // =========================================================================
-    // AXI Interconnect 3×8
+    // AXI Interconnect 4×8
     // =========================================================================
-    axi_interconnect_wrap_3x8 #(
+    axi_interconnect_wrap_4x8 #(
         .DATA_WIDTH        (32),
         .ADDR_WIDTH        (32),
         .ID_WIDTH          (8),
@@ -641,43 +685,43 @@ module soc_top #(
         // Slave 0: IMEM  0x0000_0000 & 0x8000_0000 (VeeR reset vector) /18 (256 kB)
         .M00_BASE_ADDR     ({32'h8000_0000, 32'h0000_0000}),
         .M00_ADDR_WIDTH    ({32'd18,        32'd18}),
-        .M00_CONNECT_READ  (3'b111),
-        .M00_CONNECT_WRITE (3'b111),
+        .M00_CONNECT_READ  (4'b1111),
+        .M00_CONNECT_WRITE (4'b1111),
         // Slave 1: DMEM  0x0004_0000  /18  (256 kB)
         .M01_BASE_ADDR     ({32'h0000_0000, 32'h0004_0000}),
         .M01_ADDR_WIDTH    ({32'd0,         32'd18}),
-        .M01_CONNECT_READ  (3'b111),
-        .M01_CONNECT_WRITE (3'b111),
+        .M01_CONNECT_READ  (4'b1111),
+        .M01_CONNECT_WRITE (4'b1111),
         // Slave 2: UART  0x1000_0000  /12  (4 kB)
         .M02_BASE_ADDR     ({32'h0000_0000, 32'h1000_0000}),
         .M02_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M02_CONNECT_READ  (3'b111),
-        .M02_CONNECT_WRITE (3'b111),
+        .M02_CONNECT_READ  (4'b1111),
+        .M02_CONNECT_WRITE (4'b1111),
         // Slave 3: Timer 0x1000_1000  /12  (4 kB)
         .M03_BASE_ADDR     ({32'h0000_0000, 32'h1000_1000}),
         .M03_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M03_CONNECT_READ  (3'b111),
-        .M03_CONNECT_WRITE (3'b111),
+        .M03_CONNECT_READ  (4'b1111),
+        .M03_CONNECT_WRITE (4'b1111),
         // Slave 4: GPIO  0x1000_2000  /12  (4 kB)
         .M04_BASE_ADDR     ({32'h0000_0000, 32'h1000_2000}),
         .M04_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M04_CONNECT_READ  (3'b111),
-        .M04_CONNECT_WRITE (3'b111),
+        .M04_CONNECT_READ  (4'b1111),
+        .M04_CONNECT_WRITE (4'b1111),
         // Slave 5: RLE   0x1001_0000  /12  (4 kB)
         .M05_BASE_ADDR     ({32'h0000_0000, 32'h1001_0000}),
         .M05_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M05_CONNECT_READ  (3'b111),
-        .M05_CONNECT_WRITE (3'b111),
-        // Slave 6: DMA stub  0x1001_1000  /12
+        .M05_CONNECT_READ  (4'b1111),
+        .M05_CONNECT_WRITE (4'b1111),
+        // Slave 6: DMA   0x1001_1000  /12  (4 kB)
         .M06_BASE_ADDR     ({32'h0000_0000, 32'h1001_1000}),
         .M06_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M06_CONNECT_READ  (3'b111),
-        .M06_CONNECT_WRITE (3'b111),
+        .M06_CONNECT_READ  (4'b1111),
+        .M06_CONNECT_WRITE (4'b1111),
         // Slave 7: CRC   0x1001_2000  /12  (4 kB)
         .M07_BASE_ADDR     ({32'h0000_0000, 32'h1001_2000}),
         .M07_ADDR_WIDTH    ({32'd0,         32'd12}),
-        .M07_CONNECT_READ  (3'b111),
-        .M07_CONNECT_WRITE (3'b111)
+        .M07_CONNECT_READ  (4'b1111),
+        .M07_CONNECT_WRITE (4'b1111)
     ) u_interconnect (
         .clk               (clk),
         .rst               (rst),
@@ -750,6 +794,29 @@ module soc_top #(
         .s02_axi_rid       (sb32_rid),      .s02_axi_rdata   (sb32_rdata),
         .s02_axi_rresp     (sb32_rresp),    .s02_axi_rlast   (sb32_rlast),
         .s02_axi_ruser     (sb32_ruser),
+        // S03 = DMA Master Engine
+        .s03_axi_awvalid   (dma_awvalid),   .s03_axi_awready (dma_awready),
+        .s03_axi_awid      (dma_awid),      .s03_axi_awaddr  (dma_awaddr),
+        .s03_axi_awlen     (dma_awlen),     .s03_axi_awsize  (dma_awsize),
+        .s03_axi_awburst   (dma_awburst),   .s03_axi_awlock  (dma_awlock),
+        .s03_axi_awcache   (dma_awcache),   .s03_axi_awprot  (dma_awprot),
+        .s03_axi_awqos     (dma_awqos),     .s03_axi_awuser  (dma_awuser),
+        .s03_axi_wvalid    (dma_wvalid),    .s03_axi_wready  (dma_wready),
+        .s03_axi_wdata     (dma_wdata),     .s03_axi_wstrb   (dma_wstrb),
+        .s03_axi_wlast     (dma_wlast),     .s03_axi_wuser   (dma_wuser),
+        .s03_axi_bvalid    (dma_bvalid),    .s03_axi_bready  (dma_bready),
+        .s03_axi_bresp     (dma_bresp),     .s03_axi_bid     (dma_bid),
+        .s03_axi_buser     (dma_buser),
+        .s03_axi_arvalid   (dma_arvalid),   .s03_axi_arready (dma_arready),
+        .s03_axi_arid      (dma_arid),      .s03_axi_araddr  (dma_araddr),
+        .s03_axi_arlen     (dma_arlen),     .s03_axi_arsize  (dma_arsize),
+        .s03_axi_arburst   (dma_arburst),   .s03_axi_arlock  (dma_arlock),
+        .s03_axi_arcache   (dma_arcache),   .s03_axi_arprot  (dma_arprot),
+        .s03_axi_arqos     (dma_arqos),     .s03_axi_aruser  (dma_aruser),
+        .s03_axi_rvalid    (dma_rvalid),    .s03_axi_rready  (dma_rready),
+        .s03_axi_rid       (dma_rid),       .s03_axi_rdata   (dma_rdata),
+        .s03_axi_rresp     (dma_rresp),     .s03_axi_rlast   (dma_rlast),
+        .s03_axi_ruser     (dma_ruser),
         // M00 = IMEM
         .m00_axi_awvalid   (m00_awvalid),   .m00_axi_awready (m00_awready),
         .m00_axi_awid      (m00_awid),      .m00_axi_awaddr  (m00_awaddr),
@@ -1054,79 +1121,103 @@ module soc_top #(
     assign m05_rlast = 1'b1;
 
     // =========================================================================
-    // DMA Stub (M06) — no DMA implemented; returns SLVERR for every access.
-    // Write and read channels are independent state machines:
-    //   IDLE → accept AW+W → assert B (SLVERR) until bready → IDLE
-    //   IDLE → accept AR   → assert R (SLVERR) until rready → IDLE
+    // DMA Controller IP (M06) & Master (S03)
     // =========================================================================
+    dma_top #(
+        .ADDR_WIDTH     (32),
+        .DATA_WIDTH     (32),
+        .STRB_WIDTH     (4),
+        .ID_WIDTH       (8),
+        .AXI_ID         (8'h30),
+        .BUFFER_DEPTH   (256),
+        .TIMEOUT_CYCLES (100000)
+    ) u_dma (
+        .clk            (clk),
+        .rst_n          (rst_n),
 
-    // ---- M06 write-response stub ----
-    reg        m06_aw_accepted;
-    reg        m06_w_accepted;
-    reg        m06_bvalid_r;
-    reg  [7:0] m06_bid_r;
+        // AXI4-Lite Slave Register Interface (from M06 of crossbar)
+        .s_axi_awid     (m06_awid),
+        .s_axi_awaddr   (m06_awaddr),
+        .s_axi_awprot   (m06_awprot),
+        .s_axi_awvalid  (m06_awvalid),
+        .s_axi_awready  (m06_awready),
 
-    assign m06_awready = !m06_aw_accepted && !m06_bvalid_r;
-    assign m06_wready  = !m06_w_accepted  && !m06_bvalid_r;
-    assign m06_bvalid  = m06_bvalid_r;
-    assign m06_bresp   = 2'b10;            // SLVERR
-    assign m06_bid     = m06_bid_r;
+        .s_axi_wdata    (m06_wdata),
+        .s_axi_wstrb    (m06_wstrb),
+        .s_axi_wvalid   (m06_wvalid),
+        .s_axi_wready   (m06_wready),
 
-    always @(posedge clk) begin
-        if (rst) begin
-            m06_aw_accepted <= 1'b0;
-            m06_w_accepted  <= 1'b0;
-            m06_bvalid_r    <= 1'b0;
-            m06_bid_r       <= 8'h0;
-        end else begin
-            // Capture AW handshake
-            if (m06_awvalid && m06_awready) begin
-                m06_aw_accepted <= 1'b1;
-                m06_bid_r       <= m06_awid;
-            end
-            // Capture W handshake (only care about wlast)
-            if (m06_wvalid && m06_wready && m06_wlast)
-                m06_w_accepted <= 1'b1;
-            else if (m06_wvalid && m06_wready && !m06_wlast)
-                /* absorb non-last beats — keep wready high */ ;
-            // When both AW and W are done, assert BVALID
-            if (m06_aw_accepted && m06_w_accepted && !m06_bvalid_r) begin
-                m06_bvalid_r    <= 1'b1;
-                m06_aw_accepted <= 1'b0;
-                m06_w_accepted  <= 1'b0;
-            end
-            // B handshake complete
-            if (m06_bvalid_r && m06_bready)
-                m06_bvalid_r <= 1'b0;
-        end
-    end
+        .s_axi_bid      (m06_bid),
+        .s_axi_bresp    (m06_bresp),
+        .s_axi_bvalid   (m06_bvalid),
+        .s_axi_bready   (m06_bready),
 
-    // ---- M06 read-response stub ----
-    reg        m06_rvalid_r;
-    reg  [7:0] m06_rid_r;
+        .s_axi_arid     (m06_arid),
+        .s_axi_araddr   (m06_araddr),
+        .s_axi_arprot   (m06_arprot),
+        .s_axi_arvalid  (m06_arvalid),
+        .s_axi_arready  (m06_arready),
 
-    assign m06_arready = !m06_rvalid_r;
-    assign m06_rvalid  = m06_rvalid_r;
-    assign m06_rdata   = 32'hDEAD_BEEF;
-    assign m06_rresp   = 2'b10;            // SLVERR
-    assign m06_rid     = m06_rid_r;
-    assign m06_rlast   = 1'b1;             // single-beat error response
+        .s_axi_rid      (m06_rid),
+        .s_axi_rdata    (m06_rdata),
+        .s_axi_rresp    (m06_rresp),
+        .s_axi_rlast    (m06_rlast),
+        .s_axi_rvalid   (m06_rvalid),
+        .s_axi_rready   (m06_rready),
 
-    always @(posedge clk) begin
-        if (rst) begin
-            m06_rvalid_r <= 1'b0;
-            m06_rid_r    <= 8'h0;
-        end else begin
-            // Accept read address → immediately respond with error
-            if (m06_arvalid && m06_arready) begin
-                m06_rvalid_r <= 1'b1;
-                m06_rid_r    <= m06_arid;
-            end
-            // R handshake complete
-            if (m06_rvalid_r && m06_rready)
-                m06_rvalid_r <= 1'b0;
-        end
-    end
+        // AXI4 Master Engine Interface (to S03 of crossbar)
+        .m_axi_awvalid  (dma_awvalid),
+        .m_axi_awready  (dma_awready),
+        .m_axi_awid     (dma_awid),
+        .m_axi_awaddr   (dma_awaddr),
+        .m_axi_awlen    (dma_awlen),
+        .m_axi_awsize   (dma_awsize),
+        .m_axi_awburst  (dma_awburst),
+        .m_axi_awlock   (dma_awlock),
+        .m_axi_awcache  (dma_awcache),
+        .m_axi_awprot   (dma_awprot),
+        .m_axi_awqos    (dma_awqos),
+        .m_axi_awregion (dma_awregion),
+        .m_axi_awuser   (dma_awuser),
+
+        .m_axi_wvalid   (dma_wvalid),
+        .m_axi_wready   (dma_wready),
+        .m_axi_wdata    (dma_wdata),
+        .m_axi_wstrb    (dma_wstrb),
+        .m_axi_wlast    (dma_wlast),
+        .m_axi_wuser    (dma_wuser),
+
+        .m_axi_bvalid   (dma_bvalid),
+        .m_axi_bready   (dma_bready),
+        .m_axi_bresp    (dma_bresp),
+        .m_axi_bid      (dma_bid),
+        .m_axi_buser    (dma_buser),
+
+        .m_axi_arvalid  (dma_arvalid),
+        .m_axi_arready  (dma_arready),
+        .m_axi_arid     (dma_arid),
+        .m_axi_araddr   (dma_araddr),
+        .m_axi_arlen    (dma_arlen),
+        .m_axi_arsize   (dma_arsize),
+        .m_axi_arburst  (dma_arburst),
+        .m_axi_arlock   (dma_arlock),
+        .m_axi_arcache  (dma_arcache),
+        .m_axi_arprot   (dma_arprot),
+        .m_axi_arqos    (dma_arqos),
+        .m_axi_arregion (dma_arregion),
+        .m_axi_aruser   (dma_aruser),
+
+        .m_axi_rvalid   (dma_rvalid),
+        .m_axi_rready   (dma_rready),
+        .m_axi_rid      (dma_rid),
+        .m_axi_rdata    (dma_rdata),
+        .m_axi_rresp    (dma_rresp),
+        .m_axi_rlast    (dma_rlast),
+        .m_axi_ruser    (dma_ruser),
+
+        // Interrupt Output
+        .irq_o          (dma_irq)
+    );
 
     // =========================================================================
     // CRC-32 Engine (M07)

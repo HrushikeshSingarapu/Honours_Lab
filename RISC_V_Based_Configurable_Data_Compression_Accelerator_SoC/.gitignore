@@ -1,0 +1,23 @@
+# Synopsys VCS generated files
+simv*
+csrc/
+*.daidir/
+ucli.key
+vcs_test/
+*.key
+
+# Simulation outputs
+*.fsdb
+*.vcd
+*.log
+dump*
+verdiLog/
+verdiLog
+novas.conf
+novas.rc
+verdi_config_file
+
+# Generated binaries
+*.elf
+*.bin
+*.dump

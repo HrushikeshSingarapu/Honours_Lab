@@ -52,7 +52,8 @@ module soc_core_top
     // Interrupt status
     output wire        gpio_irq,
     output wire        timer_irq,
-    output wire        rle_irq
+    output wire        rle_irq,
+    output wire        dma_irq
 );
 
     // =========================================================================
@@ -456,7 +457,7 @@ module soc_core_top
         // Interrupts
         .timer_int              (timer_irq),
         .soft_int               (1'b0),
-        .extintsrc_req          ({29'b0, rle_irq, gpio_irq}),
+        .extintsrc_req          ({28'b0, dma_irq, rle_irq, gpio_irq}),
 
         // Perf counters
         .dec_tlu_perfcnt0       (),
@@ -652,7 +653,8 @@ module soc_core_top
         .gpio_oe         (gpio_oe),
         .gpio_irq        (gpio_irq),
         .timer_irq       (timer_irq),
-        .rle_irq         (rle_irq)
+        .rle_irq         (rle_irq),
+        .dma_irq         (dma_irq)
     );
 
 endmodule
