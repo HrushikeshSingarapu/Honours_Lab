@@ -13,79 +13,79 @@
 +incdir+../../Reliable_Data_Transport_System/rtl/ip/timer
 +incdir+../../Reliable_Data_Transport_System/rtl/ip/gpio
 +incdir+../../Reliable_Data_Transport_System/rtl/ip/crc
-+incdir+/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/snapshots/soc_sim
-+incdir+/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/include
-+incdir+/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib
-+incdir+/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dmi
++incdir+../../Cores-VeeR-EL2/snapshots/soc_sim
++incdir+../../Cores-VeeR-EL2/design/include
++incdir+../../Cores-VeeR-EL2/design/lib
++incdir+../../Cores-VeeR-EL2/design/dmi
 
 // --- VeeR Snapshot Global Defines ---
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/snapshots/soc_sim/common_defines.vh
+../../Cores-VeeR-EL2/snapshots/soc_sim/common_defines.vh
 
 // --- VeeR Packages & Interfaces ---
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/include/el2_def.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_assert.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_mubi_pkg.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_lockstep_pkg.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_mem_if.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_regfile_if.sv
+../../Cores-VeeR-EL2/design/include/el2_def.sv
+../../Cores-VeeR-EL2/design/lib/el2_assert.sv
+../../Cores-VeeR-EL2/design/el2_mubi_pkg.sv
+../../Cores-VeeR-EL2/design/el2_lockstep_pkg.sv
+../../Cores-VeeR-EL2/design/lib/el2_mem_if.sv
+../../Cores-VeeR-EL2/design/lib/el2_regfile_if.sv
 
 // --- VeeR Core Infrastructure & DMI ---
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_lib.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_prim_generic_buf.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/el2_prim_buf.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/ahb_to_axi4.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/axi4_to_ahb.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dmi/dmi_mux.v
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dmi/dmi_wrapper.v
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dmi/dmi_jtag_to_core_sync.v
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dmi/rvjtag_tap.v
+../../Cores-VeeR-EL2/design/lib/el2_lib.sv
+../../Cores-VeeR-EL2/design/lib/el2_prim_generic_buf.sv
+../../Cores-VeeR-EL2/design/lib/el2_prim_buf.sv
+../../Cores-VeeR-EL2/design/lib/ahb_to_axi4.sv
+../../Cores-VeeR-EL2/design/lib/axi4_to_ahb.sv
+../../Cores-VeeR-EL2/design/dmi/dmi_mux.v
+../../Cores-VeeR-EL2/design/dmi/dmi_wrapper.v
+../../Cores-VeeR-EL2/design/dmi/dmi_jtag_to_core_sync.v
+../../Cores-VeeR-EL2/design/dmi/rvjtag_tap.v
 
 // --- VeeR Subunits (IFU, DEC, EXU, LSU, DBG) ---
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_aln_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_compress_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_ifc_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_bp_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_ic_mem.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_mem_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu_iccm_mem.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/ifu/el2_ifu.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_decode_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_gpr_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_ib_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_pmp_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_tlu_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec_trigger.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dec/el2_dec.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/exu/el2_exu_alu_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/exu/el2_exu_mul_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/exu/el2_exu_div_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/exu/el2_exu.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_clkdomain.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_addrcheck.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_lsc_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_stbuf.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_bus_buffer.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_bus_intf.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_ecc.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_dccm_mem.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_dccm_ctl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lsu/el2_lsu_trigger.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/dbg/el2_dbg.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_aln_ctl.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_compress_ctl.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_ifc_ctl.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_bp_ctl.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_ic_mem.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_mem_ctl.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu_iccm_mem.sv
+../../Cores-VeeR-EL2/design/ifu/el2_ifu.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_decode_ctl.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_gpr_ctl.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_ib_ctl.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_pmp_ctl.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_tlu_ctl.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec_trigger.sv
+../../Cores-VeeR-EL2/design/dec/el2_dec.sv
+../../Cores-VeeR-EL2/design/exu/el2_exu_alu_ctl.sv
+../../Cores-VeeR-EL2/design/exu/el2_exu_mul_ctl.sv
+../../Cores-VeeR-EL2/design/exu/el2_exu_div_ctl.sv
+../../Cores-VeeR-EL2/design/exu/el2_exu.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_clkdomain.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_addrcheck.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_lsc_ctl.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_stbuf.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_bus_buffer.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_bus_intf.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_ecc.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_dccm_mem.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_dccm_ctl.sv
+../../Cores-VeeR-EL2/design/lsu/el2_lsu_trigger.sv
+../../Cores-VeeR-EL2/design/dbg/el2_dbg.sv
 
 // --- VeeR Core Top Level Modules ---
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_dma_ctrl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_pmp.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_pic_ctrl.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_mem.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_veer.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_veer_lockstep.sv
-/home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/el2_veer_wrapper.sv
+../../Cores-VeeR-EL2/design/el2_dma_ctrl.sv
+../../Cores-VeeR-EL2/design/el2_pmp.sv
+../../Cores-VeeR-EL2/design/el2_pic_ctrl.sv
+../../Cores-VeeR-EL2/design/el2_mem.sv
+../../Cores-VeeR-EL2/design/el2_veer.sv
+../../Cores-VeeR-EL2/design/el2_veer_lockstep.sv
+../../Cores-VeeR-EL2/design/el2_veer_wrapper.sv
 
 // --- VeeR SRAM Models & Behavioral Flops ---
--v /home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/beh_lib.sv
--v /home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib/mem_lib.sv
--y /home/student/Documents/142/Honours_Lab/Cores-VeeR-EL2/design/lib
+-v ../../Cores-VeeR-EL2/design/lib/beh_lib.sv
+-v ../../Cores-VeeR-EL2/design/lib/mem_lib.sv
+-y ../../Cores-VeeR-EL2/design/lib
 
 // --- Peripheral RTLs ---
 ../../Reliable_Data_Transport_System/rtl/ip/uart/axi_uart_top.v

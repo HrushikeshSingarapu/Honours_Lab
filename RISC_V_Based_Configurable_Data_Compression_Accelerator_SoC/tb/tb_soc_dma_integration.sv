@@ -459,8 +459,13 @@ module tb_soc_dma_integration;
         integer    timeout;
 
         // Waveform dumping setup
+`ifdef VCS
         $fsdbDumpfile("soc_dma_integration.fsdb");
         $fsdbDumpvars(0, tb_soc_dma_integration);
+`elsif VCD
+        $dumpfile("soc_dma_integration.vcd");
+        $dumpvars(0, tb_soc_dma_integration);
+`endif
 
         $display("");
         $display("================================================================");

@@ -400,7 +400,7 @@ module tb_gpio_top;
 
         // Assert level condition on pin 0
         gpio_i[0] = 1'b1;
-        repeat(3) @(posedge clk);
+        repeat(4) @(posedge clk);
         test_count = test_count + 1;
         if (gpio_irq === 1'b1) begin
             pass_count = pass_count + 1;
@@ -444,7 +444,7 @@ module tb_gpio_top;
 
         // Pulse Pin 1: 0 -> 1 (Rising edge)
         gpio_i[1] = 1'b1;
-        repeat(3) @(posedge clk);
+        repeat(4) @(posedge clk);
         test_count = test_count + 1;
         if (gpio_irq === 1'b1) begin
             pass_count = pass_count + 1;
@@ -460,7 +460,7 @@ module tb_gpio_top;
 
         // Pulse Pin 2: 1 -> 0 (Falling edge)
         gpio_i[2] = 1'b0;
-        repeat(3) @(posedge clk);
+        repeat(4) @(posedge clk);
         test_count = test_count + 1;
         if (gpio_irq === 1'b1) begin
             pass_count = pass_count + 1;

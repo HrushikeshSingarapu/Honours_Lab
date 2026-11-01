@@ -54,8 +54,13 @@ module tb_soc_uart_firmware;
     );
 
     initial begin
+`ifdef VCS
         $fsdbDumpfile("uart_firmware.fsdb");
         $fsdbDumpvars(0, tb_soc_uart_firmware);
+`elsif VCD
+        $dumpfile("uart_firmware.vcd");
+        $dumpvars(0, tb_soc_uart_firmware);
+`endif
 
         clk = 0;
         rst_n = 0;
@@ -67,7 +72,7 @@ module tb_soc_uart_firmware;
 
         // Load the 23 words generated from the C firmware.
         $readmemh("../firmware/uart_test_word.hex",
-                  u_dut.u_soc.u_imem.mem, 0, 22);
+                  u_dut.u_soc.u_imem.mem);
 
         $display("==============================================");
         $display("VeeR EL2 C Firmware UART Test");
@@ -81,7 +86,16 @@ module tb_soc_uart_firmware;
         $display("[%0t] Reset released. Firmware executing.", $time);
 
         // Allow sufficient time for UART transmission.
-        repeat (1000000) @(posedge clk);
+        fork
+            begin
+                wait (u_uart_tx_monitor.char_count >= 2);
+                repeat (100) @(posedge clk);
+            end
+            begin
+                repeat (30000) @(posedge clk);
+            end
+        join_any
+        disable fork;
 
         $display("");
         $display("UART TX transitions observed: %0d",
