@@ -8,9 +8,8 @@
 [![Interconnect](https://img.shields.io/badge/Interconnect-AXI-orange)]()
 [![HDL](https://img.shields.io/badge/HDL-Verilog%20%2F%20SystemVerilog-blue)]()
 [![Simulation](https://img.shields.io/badge/Simulation-ModelSim%20%7C%20Icarus-lightgrey)]()
-[![Verification](https://img.shields.io/badge/Regression-759%20Checks%20Passed-success)]()
 
-**Solo Honours Project --- Hrushikesh Singarapu**\
+
 **Department of Electronics and Communication Engineering --- Vasavi
 College of Engineering**
 :::
