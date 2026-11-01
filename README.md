@@ -1,4 +1,4 @@
-::: {align="center"}
+
 # RISC-V Based Configurable Data Compression Accelerator SoC
 
 ### VeeR EL2 • AXI Interconnect • RLE Compression / Decompression • DMA • CRC-32
@@ -1106,7 +1106,7 @@ Accelerators.
 
 ------------------------------------------------------------------------
 
-::: {align="center"}
+
 **RISC-V Based Configurable Data Compression Accelerator SoC**
 
 *Processor-controlled compression • Hardware data movement • CRC-based
