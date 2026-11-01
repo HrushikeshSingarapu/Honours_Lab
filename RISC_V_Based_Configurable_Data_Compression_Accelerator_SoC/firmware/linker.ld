@@ -5,6 +5,7 @@ MEMORY
 {
     IMEM (rx)  : ORIGIN = 0x80000000, LENGTH = 256K
     DCCM (rwx) : ORIGIN = 0xF0040000, LENGTH = 64K
+    DMEM (rwx) : ORIGIN = 0x00040000, LENGTH = 256K
 }
 
 SECTIONS
@@ -31,4 +32,11 @@ SECTIONS
     } > DCCM
 
     __stack_top = ORIGIN(DCCM) + LENGTH(DCCM) - 16;
+
+    /DISCARD/ :
+    {
+        *(.note*)
+        *(.comment)
+        *(.riscv.attributes)
+    }
 }
