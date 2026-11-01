@@ -1,4 +1,6 @@
-configs/snapshots
+configs/snapshots/*
+!snapshots/default/
+!snapshots/soc_sim/
 work
 obj_dir
 *.vcd
@@ -9,7 +11,9 @@ obj_dir
 *.sym
 verilator-build
 program.hex
-snapshots
+snapshots/*
+!snapshots/default/
+!snapshots/soc_sim/
 __pycache__
 sim_build
 sim-build*
