@@ -107,7 +107,6 @@
 ../rtl/priority_encoder.v
 ../rtl/arbiter.v
 ../rtl/axi_interconnect.v
-../rtl/axi_interconnect_wrap_3x8.v
 ../rtl/axi_interconnect_wrap_4x8.v
 ../rtl/axi64_to_32_bridge.v
 ../rtl/dma_reg_file.v

@@ -5,6 +5,10 @@ simv.daidir/
 csrc/
 AN.DB/
 
+# Firmware intermediate build binaries (hex files are preserved for $readmemh)
+*.elf
+*.bin
+
 # ModelSim / QuestaSim build directories & logs
 msim_work/
 work/
@@ -19,9 +23,9 @@ modelsim.ini
 *.vpd
 
 # Simulation logs and diagnostics
-compile.log
-sim.log
+*.log
 sim.err
 ucli.key
 novas_dump.log
 vc_hdrs.h
+whisper.json

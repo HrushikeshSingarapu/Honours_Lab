@@ -801,18 +801,16 @@ Honours_Lab/
 ├── RISC_V_Based_Configurable_Data_Compression_Accelerator_SoC/
 ├── Cores-VeeR-EL2/
 ├── Reliable_Data_Transport_System/
-├── axi-lite_uart-ipcore-develop/
-├── aes_core-master/
-├── I2C/
-└── docs/
+├── docs/
+└── archive/
+    ├── external_ips/  (aes_core-master, I2C, upstream axi-lite_uart)
+    └── phase1/        (historical Phase 1 planning spreadsheets)
 ```
 
 These directories are maintained as separate components. Their presence
 does not imply that every IP is integrated into the main compression
-SoC.
-
-------------------------------------------------------------------------
-
+SoC. Supporting and unintegrated third-party repositories are preserved
+under `archive/` for license compliance and historical reference.
 ## 16. Tools and Simulation Environment
 
 The consolidated simulation baseline was reported using the following

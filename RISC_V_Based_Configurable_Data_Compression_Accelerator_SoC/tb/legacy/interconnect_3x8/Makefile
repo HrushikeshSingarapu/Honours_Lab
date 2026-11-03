@@ -66,7 +66,7 @@ all: compile sim
 # ---------- compile ----------------------------------------------------------
 compile: $(SIMV)
 
-$(SIMV): run.f $(wildcard ../rtl/*.v) $(wildcard ./*.sv)
+$(SIMV): run.f $(wildcard ../../../rtl/*.v) $(wildcard ./*.sv)
 	@echo ""
 	@echo "=== COMPILE ==="
 	@echo "$(VCS) -full64 -sverilog +v2k -timescale=1ns/1ps -kdb -debug_access+all \\"

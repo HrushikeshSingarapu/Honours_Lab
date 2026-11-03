@@ -46,7 +46,7 @@ $TbDir        = "$RepoRoot\tb"
 $FirmwareDir  = "$RepoRoot\firmware"
 $WorkspaceDir = (Resolve-Path "$RepoRoot\..").Path
 $VeerDir      = "$WorkspaceDir\Cores-VeeR-EL2"
-$UartIpDir    = "$WorkspaceDir\axi-lite_uart-ipcore-develop"
+$UartIpDir    = "$WorkspaceDir\Reliable_Data_Transport_System\rtl\ip\uart"
 
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host " VeeR EL2 SoC Simulation Runner (Windows Native)" -ForegroundColor Cyan
@@ -78,6 +78,10 @@ $VsimTool = Find-Tool "vsim" @(
 $VlibTool = Find-Tool "vlib" @(
     "C:\intelFPGA\20.1\modelsim_ase\win32aloem\vlib.exe",
     "C:\intelFPGA_lite\20.1\modelsim_ase\win32aloem\vlib.exe"
+)
+$VdirTool = Find-Tool "vdir" @(
+    "C:\intelFPGA\20.1\modelsim_ase\win32aloem\vdir.exe",
+    "C:\intelFPGA_lite\20.1\modelsim_ase\win32aloem\vdir.exe"
 )
 $PerlTool = Find-Tool "perl" @(
     "C:\Program Files\Git\usr\bin\perl.exe",
@@ -257,10 +261,47 @@ $VlogIncDirs = @(
     "+incdir+$VeerDir/design/include",
     "+incdir+$VeerDir/snapshots/default",
     "+incdir+$RtlDir/include",
-    "+incdir+$UartIpDir/src/include",
-    "+incdir+$UartIpDir/src/rtl",
+    "+incdir+$UartIpDir",
     "+incdir+."
 )
+
+$DesignCompiled = $false
+
+function Ensure-DesignCompiled {
+    param (
+        [string]$Filelist = "dma_firmware.f"
+    )
+
+    if ($script:DesignCompiled) {
+        return
+    }
+
+    $needsCompile = $true
+    if (Test-Path "$TbDir\work") {
+        if ($VdirTool) {
+            $vdirOut = & $VdirTool -lib work soc_core_top 2>&1
+            if ($vdirOut -match "MODULE soc_core_top") {
+                $needsCompile = $false
+            }
+        }
+    }
+
+    if ($needsCompile) {
+        Write-Host "`n----------------------------------------------------------------" -ForegroundColor Magenta
+        Write-Host " Pre-compiling SoC Design Infrastructure ($Filelist)" -ForegroundColor Magenta
+        Write-Host "----------------------------------------------------------------" -ForegroundColor Magenta
+        $VlogArgs = @("-sv", "-mfcu", "+define+RV_OPENSOURCE") + $VlogIncDirs + @("-f", $Filelist)
+        if (-not (Test-Path $Filelist)) {
+            throw "Design filelist '$Filelist' not found in $TbDir!"
+        }
+        Write-Host "[Vlog] Compiling $Filelist..." -ForegroundColor Cyan
+        & $VlogTool @VlogArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "Pre-compilation of $Filelist failed with exit code $LASTEXITCODE"
+        }
+    }
+    $script:DesignCompiled = $true
+}
 
 function Run-TestTarget {
     param (
@@ -325,12 +366,14 @@ function Run-TestTarget {
 $Results = @{}
 
 if ($Target -eq 'boot' -or $Target -eq 'all') {
+    Ensure-DesignCompiled -Filelist "dma_firmware.f"
     $Results['boot'] = Run-TestTarget -TestName "CPU Core Boot Test" `
                                       -TbSource "tb_soc_core_boot.sv" `
                                       -ExpectedSignature "Signature 0xCAFEBABE verified at DMEM[0]"
 }
 
 if ($Target -eq 'periph' -or $Target -eq 'all') {
+    Ensure-DesignCompiled -Filelist "dma_firmware.f"
     $Results['periph'] = Run-TestTarget -TestName "VeeR EL2 Peripheral Test" `
                                         -TbSource "tb_soc_periph_test.sv" `
                                         -ExpectedSignature "ALL 5 PERIPHERALS PASSED! Signature 0xCAFEF00D"
