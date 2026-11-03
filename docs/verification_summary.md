@@ -85,14 +85,14 @@ The flagship verification test (`tb_soc_dma_firmware.sv`) executes `firmware/mai
 
 | Op # | Operation | Input Size | Input Pattern Description | Golden Output Bytes | Compression Ratio |
 |:---:|:---|:---:|:---|:---:|:---:|
-| **1** | Compression | 32 Bytes | Highly redundant: 32 bytes of `0xAA` | 2 Bytes (`[0x20, 0xAA]`) | **16.0 : 1 (93.75% reduction)** |
-| **2** | Decompression | 2 Bytes | Compressed token `[0x20, 0xAA]` | 32 Bytes (`0xAA` repeated) | **1 : 16.0 (Reconstructed)** |
-| **3** | Compression | 32 Bytes | Two distinct runs: 16 $\times$ `0x55`, 16 $\times$ `0x33` | 4 Bytes (`[0x10, 0x55, 0x10, 0x33]`) | **8.0 : 1 (87.5% reduction)** |
-| **4** | Decompression | 4 Bytes | Compressed tokens `[0x10, 0x55, 0x10, 0x33]` | 32 Bytes (16 $\times$ `0x55`, 16 $\times$ `0x33`) | **1 : 8.0 (Reconstructed)** |
-| **5** | Compression | 32 Bytes | Non-compressible: `0x00, 0x01, ..., 0x1F` | 64 Bytes (32 $\times$ `[0x01, sym]`) | **0.5 : 1 (Expansion)** |
-| **6** | Decompression | 64 Bytes | Compressed expansion tokens | 32 Bytes (`0x00..0x1F`) | **1 : 0.5 (Reconstructed)** |
-| **7** | Compression | 32 Bytes | Mixed pattern: 8 $\times$ `0x11`, 8 $\times$ `0x22`, 16 $\times$ `0x44` | 6 Bytes (`[0x08,0x11, 0x08,0x22, 0x10,0x44]`) | **5.33 : 1 (81.25% reduction)** |
-| **8** | Decompression | 6 Bytes | Mixed compressed tokens | 32 Bytes (Original mixed pattern) | **1 : 5.33 (Reconstructed)** |
+| **1** | Compression | 8 Bytes | Short run: `4x 0xAA, 4x 0xBB` | 4 Bytes (`[0x04, 0xAA, 0x04, 0xBB]`) | **2.0 : 1 (50.0% reduction)** |
+| **2** | Decompression | 4 Bytes | Compressed token `[0x04, 0xAA, 0x04, 0xBB]` | 8 Bytes (`4x 0xAA, 4x 0xBB` repeated) | **1 : 2.0 (Reconstructed)** |
+| **3** | Compression | 16 Bytes | Pure run: 16 $\times$ `0x55` | 2 Bytes (`[0x10, 0x55]`) | **8.0 : 1 (87.5% reduction)** |
+| **4** | Decompression | 2 Bytes | Compressed tokens `[0x10, 0x55]` | 16 Bytes (16 $\times$ `0x55`) | **1 : 8.0 (Reconstructed)** |
+| **5** | Compression | 14 Bytes | Mixed pattern & singletons (`0x11..0x77`) | 14 Bytes (7 token pairs) | **1.0 : 1 (Neutral)** |
+| **6** | Decompression | 14 Bytes | Compressed tokens | 14 Bytes (Original mixed pattern) | **1 : 1.0 (Reconstructed)** |
+| **7** | Compression | 32 Bytes | Boundary run: 8 $\times$ `0x10`, 8 $\times$ `0x20`, 8 $\times$ `0x30`, 8 $\times$ `0x40` | 8 Bytes (4 token pairs) | **4.0 : 1 (75.0% reduction)** |
+| **8** | Decompression | 8 Bytes | Compressed tokens | 32 Bytes (Original boundary pattern) | **1 : 4.0 (Reconstructed)** |
 
 ### 3.2 IEEE 802.3 CRC-32 Golden Integrity Checksums
 
@@ -104,10 +104,10 @@ For every test pattern, data integrity was validated across the entire data life
 
 | Pattern | Data Description | Golden IEEE 802.3 CRC-32 | Firmware Check | TB Mem Cross-Check |
 |:---|:---|:---:|:---:|:---:|
-| Pattern 1 | 32 $\times$ `0xAA` | `0x7C04E4D3` | **PASS** | **PASS** |
-| Pattern 2 | 16 $\times$ `0x55`, 16 $\times$ `0x33` | `0xBA3B6BC1` | **PASS** | **PASS** |
-| Pattern 3 | 32 Bytes Incrementing (`0x00..0x1F`) | `0x91267E8A` | **PASS** | **PASS** |
-| Pattern 4 | Mixed Runs (8 $\times$ `0x11`, 8 $\times$ `0x22`, 16 $\times$ `0x44`) | `0xE082F245` | **PASS** | **PASS** |
+| Pattern 1 | 8 Bytes (`4x 0xAA, 4x 0xBB`) | `0x679ED8AF` | **PASS** | **PASS** |
+| Pattern 2 | 16 $\times$ `0x55` | `0x1493CDAF` | **PASS** | **PASS** |
+| Pattern 3 | 14 Bytes Mixed (`3x 0x11, 0x22, 0x33, 4x 0x44, 2x 0x55, 0x66, 2x 0x77`) | `0x6D5FF127` | **PASS** | **PASS** |
+| Pattern 4 | 32 Bytes Boundary (8 $\times$ `0x10`, 8 $\times$ `0x20`, 8 $\times$ `0x30`, 8 $\times$ `0x40`) | `0xBB19A46E` | **PASS** | **PASS** |
 
 ### 3.3 Core Execution Metrics (VeeR EL2)
 - **Total Simulation Clock Cycles:** 25,635 cycles (at 50 MHz $\approx 512.7\ \mu\text{s}$).
