@@ -755,62 +755,74 @@ firmware testbench.
 
 ## 15. Repository Structure
 
-The main SoC project is maintained in the following directory:
+The unified SoC project is organized into a clean, professional, maintainable structure:
 
 ``` text
 RISC_V_Based_Configurable_Data_Compression_Accelerator_SoC/
 │
-├── rtl/
-│   ├── SoC RTL
-│   ├── AXI interconnect and bus adaptation
-│   ├── Memory interfaces
-│   └── Peripheral / accelerator RTL
+├── README.md
+├── .gitignore
 │
-├── tb/
-│   ├── Unit testbenches
-│   ├── Subsystem integration testbenches
-│   ├── SoC firmware testbenches
-│   ├── uart_firmware.f
-│   ├── dma_firmware.f
-│   └── run_sim.ps1
+├── docs/
+│   ├── architecture/        # Architecture specification and PDF block diagrams
+│   ├── specifications/      # Build, simulation, and tool guidelines
+│   ├── address_map/         # Complete memory & peripheral register maps
+│   ├── integration/         # Interconnect & core integration notes
+│   └── verification/        # Test plans and verification summaries
+│
+├── rtl/
+│   ├── soc/                 # SoC top and core top wrappers
+│   ├── interconnect/        # AXI4 crossbar, 64-to-32 bridge, arbiters
+│   ├── memory/              # Memory subsystem & models
+│   ├── peripherals/         # UART, GPIO, Timer, CRC-32 RTLs
+│   └── accelerators/        # Hardware RLE engine & DMA controller
 │
 ├── firmware/
-│   ├── start.S
-│   ├── linker.ld
-│   ├── main_dma.c
-│   ├── uart_test_word.hex
-│   └── dma_test_word.hex
+│   ├── source/              # Bare-metal C application code (main.c, main_dma.c)
+│   ├── startup/             # RISC-V CRT0 boot code (start.S)
+│   ├── linker/              # GNU ld script for IMEM & DMEM (linker.ld)
+│   ├── include/             # C headers and register definitions
+│   └── images/              # Precompiled .hex and .vh memory payloads
 │
-├── docs/
-│   ├── architecture.md
-│   ├── address_map.md
-│   ├── build_and_simulation.md
-│   └── verification_summary.md
+├── verification/
+│   ├── uvm/                 # Unified SoC UVM Verification Environment
+│   │   ├── tb_soc_top.sv    # Top-level SystemVerilog testbench
+│   │   ├── interfaces/      # soc_interfaces.sv, axi_monitor_if.sv
+│   │   ├── vip/             # Reusable VIPs (axi, uart, gpio, reset, irq)
+│   │   ├── env/             # soc_env, scoreboard, coverage, soc_uvm_pkg
+│   │   ├── config/          # Environment configurations and signal CSVs
+│   │   ├── sequences/       # Stimulus sequences (soc_smoke_seq.sv)
+│   │   ├── tests/           # UVM tests (soc_smoke_test.sv)
+│   │   └── filelists/       # Compilation filelists (soc_uvm.f)
+│   │
+│   ├── assertions/          # Protocol assertion checkers (AXI4, DMA, RLE)
+│   ├── standalone/          # Independent IP & subsystem testbenches
+│   │   ├── crc32/           # Standalone CRC-32 testbench
+│   │   ├── gpio/            # Standalone GPIO testbench
+│   │   ├── rle/             # Standalone RLE testbench
+│   │   ├── timer/           # Standalone Timer testbench
+│   │   ├── uart/            # Standalone UART testbench
+│   │   ├── interconnect/    # AXI bridge unit testbench
+│   │   ├── dma/             # DMA engine, sequencer, and unit tests
+│   │   ├── soc/             # Boot, memory access, and legacy firmware tests
+│   │   └── filelists/       # Standalone simulation filelists
+│   └── legacy/              # Archived test harnesses (interconnect_3x8)
 │
-└── README.md
+├── simulation/
+│   ├── scripts/             # Simulation runners (run_soc_uvm.sh, run_sim.ps1)
+│   ├── filelists/           # Top-level simulation filelists
+│   ├── logs/                # Compile and simulation execution logs
+│   └── waveforms/           # VCD dumps, GTKWave setups, and timing diagrams
+│
+├── scripts/
+│   ├── generators/          # Automation scripts (uvm_full_tb_generator.py, etc.)
+│   └── utilities/           # Waveform parser and evidence generators
+│
+├── third_party/
+│   └── RISC-V-VeeR-EL2/     # VeeR EL2 core repository (Apache 2.0)
+│
+└── archive/                 # Historical Phase 1 data and external IP reference
 ```
-
-### Supporting repository components
-
-The parent repository also contains supporting IP and processor source
-directories, including:
-
-``` text
-Honours_Lab/
-│
-├── RISC_V_Based_Configurable_Data_Compression_Accelerator_SoC/
-├── Cores-VeeR-EL2/
-├── Reliable_Data_Transport_System/
-├── docs/
-└── archive/
-    ├── external_ips/  (aes_core-master, I2C, upstream axi-lite_uart)
-    └── phase1/        (historical Phase 1 planning spreadsheets)
-```
-
-These directories are maintained as separate components. Their presence
-does not imply that every IP is integrated into the main compression
-SoC. Supporting and unintegrated third-party repositories are preserved
-under `archive/` for license compliance and historical reference.
 ## 16. Tools and Simulation Environment
 
 The consolidated simulation baseline was reported using the following

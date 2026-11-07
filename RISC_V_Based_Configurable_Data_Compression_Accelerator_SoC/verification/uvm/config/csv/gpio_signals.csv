@@ -1,0 +1,10 @@
+# =============================================================================
+# gpio_signals.csv — GPIO Interface Signal Definition
+# Verified against SoC RTL: soc_core_top.sv, soc_top.v, gpio_top.v
+# =============================================================================
+# signal_name,direction,width,description
+clk,input,1,System Clock (50 MHz)
+rst_n,input,1,Active-low asynchronous system reset
+gpio_i,input,32,32-bit external GPIO input vector (driven into DUT)
+gpio_o,output,32,32-bit GPIO output vector (driven by DUT)
+gpio_oe,output,32,32-bit GPIO output enable controls (driven by DUT)

@@ -1,23 +1,41 @@
-# Synopsys VCS generated files
+# Simulation binaries and build directories
+*.vvp
 simv*
-csrc/
+simv*.daidir/
 *.daidir/
-ucli.key
-vcs_test/
-*.key
+*.vdb/
+csrc/
+AN.DB/
 
-# Simulation outputs
-*.fsdb
-*.vcd
-*.log
-dump*
-verdiLog/
-verdiLog
-novas.conf
-novas.rc
-verdi_config_file
-
-# Generated binaries
+# Firmware intermediate build binaries (hex files are preserved for $readmemh)
 *.elf
 *.bin
-*.dump
+
+# ModelSim / QuestaSim build directories & logs
+msim_work/
+work/
+transcript
+*.wlf
+modelsim.ini
+
+# Waveform dumps
+*.vcd
+*.fsdb
+*.fsdb.*
+*.vpd
+
+# Simulation logs and diagnostics
+*.log
+sim.err
+ucli.key
+novas_dump.log
+vc_hdrs.h
+whisper.json
+novas.conf
+novas.rc
+verdiLog/
+vcd2fsdbLog/
+*.swp
+*.swo
+
+

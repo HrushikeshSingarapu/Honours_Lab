@@ -29,3 +29,11 @@ ucli.key
 novas_dump.log
 vc_hdrs.h
 whisper.json
+novas.conf
+novas.rc
+verdiLog/
+vcd2fsdbLog/
+*.swp
+*.swo
+
+

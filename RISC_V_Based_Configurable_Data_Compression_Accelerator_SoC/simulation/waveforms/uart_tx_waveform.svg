@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 540" width="1400" height="540">
+<defs>
+  <style>
+    .bg { fill: #1e1e2e; }
+    .grid { stroke: #313244; stroke-width: 1; stroke-dasharray: 4,4; }
+    .axis { stroke: #6c7086; stroke-width: 2; }
+    .label { font-family: monospace; font-size: 14px; fill: #cdd6f4; }
+    .title { font-family: sans-serif; font-size: 18px; font-weight: bold; fill: #89b4fa; }
+    .subtitle { font-family: sans-serif; font-size: 13px; fill: #a6adc8; }
+    .time-lbl { font-family: monospace; font-size: 11px; fill: #9399b2; }
+    .sig-rst { stroke: #f38ba8; stroke-width: 2.5; fill: none; }
+    .sig-uart { stroke: #a6e3a1; stroke-width: 3; fill: none; }
+    .sig-rx { stroke: #fab387; stroke-width: 2; fill: none; }
+    .sig-gpio { stroke: #f9e2af; stroke-width: 2; fill: none; }
+    .sig-irq { stroke: #cba6f7; stroke-width: 2; fill: none; }
+    .box-char { fill: #313244; stroke: #89b4fa; stroke-width: 1.5; rx: 4; }
+    .char-txt { font-family: monospace; font-size: 13px; font-weight: bold; fill: #89dceb; text-anchor: middle; }
+    .bit-txt { font-family: monospace; font-size: 10px; fill: #cdd6f4; text-anchor: middle; }
+  </style>
+</defs>
+<rect width="1400" height="540" class="bg"/>
+<text x="180" y="35" class="title">RISC-V VeeR EL2 SoC — UVM Simulation Waveform Evidence</text>
+<text x="180" y="58" class="subtitle">DUT: soc_core_top | Firmware: main.c | Baud: 115200 (8N1) | Verified Output: "HI" (0x48, 0x49)</text>
+<line x1="180.0" y1="80" x2="180.0" y2="490" class="grid"/>
+<text x="180.0" y="510" class="time-lbl" text-anchor="middle">0 µs</text>
+<line x1="308.8888888888889" y1="80" x2="308.8888888888889" y2="490" class="grid"/>
+<text x="308.8888888888889" y="510" class="time-lbl" text-anchor="middle">20 µs</text>
+<line x1="437.77777777777777" y1="80" x2="437.77777777777777" y2="490" class="grid"/>
+<text x="437.77777777777777" y="510" class="time-lbl" text-anchor="middle">40 µs</text>
+<line x1="566.6666666666666" y1="80" x2="566.6666666666666" y2="490" class="grid"/>
+<text x="566.6666666666666" y="510" class="time-lbl" text-anchor="middle">60 µs</text>
+<line x1="695.5555555555555" y1="80" x2="695.5555555555555" y2="490" class="grid"/>
+<text x="695.5555555555555" y="510" class="time-lbl" text-anchor="middle">80 µs</text>
+<line x1="824.4444444444445" y1="80" x2="824.4444444444445" y2="490" class="grid"/>
+<text x="824.4444444444445" y="510" class="time-lbl" text-anchor="middle">100 µs</text>
+<line x1="953.3333333333333" y1="80" x2="953.3333333333333" y2="490" class="grid"/>
+<text x="953.3333333333333" y="510" class="time-lbl" text-anchor="middle">120 µs</text>
+<line x1="1082.2222222222222" y1="80" x2="1082.2222222222222" y2="490" class="grid"/>
+<text x="1082.2222222222222" y="510" class="time-lbl" text-anchor="middle">140 µs</text>
+<line x1="1211.111111111111" y1="80" x2="1211.111111111111" y2="490" class="grid"/>
+<text x="1211.111111111111" y="510" class="time-lbl" text-anchor="middle">160 µs</text>
+<line x1="1340.0" y1="80" x2="1340.0" y2="490" class="grid"/>
+<text x="1340.0" y="510" class="time-lbl" text-anchor="middle">180 µs</text>
+<text x="20" y="110" class="label">reset_vif.rst_n</text>
+<text x="20" y="170" class="label">uart_vif.uart_tx</text>
+<text x="20" y="260" class="label">uart_vif.uart_rx</text>
+<text x="20" y="320" class="label">gpio_vif.gpio_o[31:0]</text>
+<text x="20" y="380" class="label">irq_vif.irqs[3:0]</text>
+<polyline points="180,120 181.90755555555555,120 181.90755555555555,90 1340,90" class="sig-rst"/>
+<line x1="180" y1="240" x2="1340" y2="240" class="sig-rx"/>
+<line x1="180" y1="330" x2="1340" y2="330" class="sig-gpio"/>
+<text x="190" y="324" class="bit-txt" style="fill:#a6adc8;">32'h0000_0000 (Idle)</text>
+<line x1="180" y1="390" x2="1340" y2="390" class="sig-irq"/>
+<text x="190" y="384" class="bit-txt" style="fill:#a6adc8;">4'b0000 (No IRQ active)</text>
+<polyline points="180,150 180.0,150 180.0,150 207.42111111111112,150 207.42111111111112,210 431.43,210 431.43,150 487.4322222222222,150 487.4322222222222,210 599.4366666666667,210 599.4366666666667,150 655.4388888888889,150 655.4388888888889,210 711.4411111111111,210 711.4411111111111,150 767.6366666666668,150 767.6366666666668,210 823.6388888888889,210 823.6388888888889,150 879.6411111111111,150 879.6411111111111,210 991.6455555555555,210 991.6455555555555,150 1047.6477777777777,150 1047.6477777777777,210 1159.6522222222222,210 1159.6522222222222,150 1215.6544444444444,150 1215.6544444444444,210 1271.6566666666668,210 1271.6566666666668,150 1340,150" class="sig-uart"/>
+<rect x="207.42111111111112" y="122" width="560.2155555555556" height="24" class="box-char"/>
+<text x="487.5288888888889" y="138" class="char-txt">UART Char #1: 'H' (0x48) [Start=0, Data=00010010b, Stop=1]</text>
+<rect x="767.6366666666668" y="122" width="559.8933333333332" height="24" class="box-char"/>
+<text x="1047.5833333333335" y="138" class="char-txt">UART Char #2: 'I' (0x49) [Start=0, Data=10010010b, Stop=1]</text>
+<text x="235.39" y="228" class="bit-txt">ST(0)</text>
+<text x="291.3277777777778" y="228" class="bit-txt">D0(0)</text>
+<text x="347.2655555555556" y="228" class="bit-txt">D1(0)</text>
+<text x="403.2033333333334" y="228" class="bit-txt">D2(0)</text>
+<text x="459.1411111111111" y="228" class="bit-txt">D3(1)</text>
+<text x="515.078888888889" y="228" class="bit-txt">D4(0)</text>
+<text x="571.0166666666667" y="228" class="bit-txt">D5(0)</text>
+<text x="626.9544444444444" y="228" class="bit-txt">D6(1)</text>
+<text x="682.8922222222222" y="228" class="bit-txt">D7(0)</text>
+<text x="738.83" y="228" class="bit-txt">SP(1)</text>
+<text x="795.6055555555556" y="228" class="bit-txt">ST(0)</text>
+<text x="851.5433333333333" y="228" class="bit-txt">D0(1)</text>
+<text x="907.4811111111111" y="228" class="bit-txt">D1(0)</text>
+<text x="963.4188888888889" y="228" class="bit-txt">D2(0)</text>
+<text x="1019.3566666666667" y="228" class="bit-txt">D3(1)</text>
+<text x="1075.2944444444443" y="228" class="bit-txt">D4(0)</text>
+<text x="1131.2322222222224" y="228" class="bit-txt">D5(0)</text>
+<text x="1187.17" y="228" class="bit-txt">D6(1)</text>
+<text x="1243.1077777777778" y="228" class="bit-txt">D7(0)</text>
+<text x="1299.0455555555554" y="228" class="bit-txt">SP(1)</text>
+</svg>

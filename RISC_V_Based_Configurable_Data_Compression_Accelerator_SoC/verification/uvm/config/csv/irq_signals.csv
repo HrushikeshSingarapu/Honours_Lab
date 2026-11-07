@@ -1,0 +1,11 @@
+# =============================================================================
+# irq_signals.csv — Interrupt Observer Interface Signal Definition
+# Verified against SoC RTL: soc_core_top.sv, soc_top.v, timer_top.v, gpio_top.v, rle_top.v, dma_top.v
+# =============================================================================
+# signal_name,direction,width,description
+clk,input,1,System Clock (50 MHz)
+rst_n,input,1,Active-low asynchronous system reset
+gpio_irq,output,1,GPIO combined interrupt line (driven by DUT)
+timer_irq,output,1,Machine timer interrupt line (driven by DUT)
+rle_irq,output,1,RLE accelerator interrupt line (driven by DUT)
+dma_irq,output,1,DMA controller interrupt line (driven by DUT)

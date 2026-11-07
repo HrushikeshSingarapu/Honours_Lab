@@ -1,0 +1,1 @@
+../../verification/uvm/filelists/soc_uvm.f

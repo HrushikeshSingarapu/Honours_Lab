@@ -1,0 +1,1403 @@
+#!/usr/bin/env python3
+"""
+=============================================================================
+Improved UVM Verification IP & Testbench Generator
+File: uvm_full_tb_generator.py
+
+Generates production-grade, IEEE 1800.2 UVM 1.2-compliant VIP infrastructure:
+  - SystemVerilog physical interfaces with clocking and modports
+  - Class-based sequence items with meaningful fields and convert2string
+  - VIP configuration objects with active/passive controls
+  - Sequencers and active drivers with reset-aware signal driving
+  - Passive monitors with analysis ports and signal sampling
+  - Modular agents with get_is_active() checks
+  - Scoreboards and environments with analysis exports
+  - Base sequences and tests
+  - Compile filelists (.f) and orderly packages
+
+Usage:
+  python3 uvm_full_tb_generator.py <vip_name> <signals.csv> [options]
+
+Options:
+  --outdir <dir>       Target output directory
+  --mode <active|passive>  Force active or passive agent (default: auto/active)
+  --clk-name <name>    Clock signal name (default: clk)
+  --rst-name <name>    Reset signal name (default: rst_n)
+  --rst-active-low     Reset is active-low (default: True)
+=============================================================================
+"""
+
+import argparse
+import csv
+import os
+import re
+import sys
+from typing import List, Dict, Any
+
+CLK_PATTERNS = {'clk', 'clock', 'aclk', 'clk_i', 'fixed_clk_i', 'axi_aclk_i'}
+RST_PATTERNS = {'rst', 'rst_n', 'reset', 'reset_n', 'aresetn_i', 'axi_aresetn_i', 'rst_l'}
+
+def parse_csv(csv_path: str) -> List[Dict[str, Any]]:
+    """Parse signal definition CSV with header validation and comment handling."""
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"Signals CSV not found: {csv_path}")
+
+    signals = []
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for line_no, row in enumerate(reader, 1):
+            # Skip empty lines and comment lines
+            if not row or not any(field.strip() for field in row):
+                continue
+            first_cell = row[0].strip()
+            if first_cell.startswith('#') or first_cell.startswith('//'):
+                continue
+
+            # Skip header row if detected
+            if line_no == 1 or first_cell.lower() in {'signal_name', 'signal', 'name', 'port_name'}:
+                if any(h in [c.strip().lower() for c in row] for h in {'direction', 'dir', 'width'}):
+                    continue
+
+            if len(row) < 3:
+                print(f"Warning: Line {line_no} has fewer than 3 columns, skipping: {row}", file=sys.stderr)
+                continue
+
+            name = row[0].strip()
+            direction = row[1].strip().lower()
+            width_str = row[2].strip()
+            desc = row[3].strip() if len(row) > 3 else ""
+
+            # Validate SystemVerilog identifier
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_$]*$', name):
+                raise ValueError(f"Invalid SystemVerilog signal identifier on line {line_no}: '{name}'")
+
+            # Validate direction
+            if direction in {'in', 'input'}:
+                norm_dir = 'input'
+            elif direction in {'out', 'output'}:
+                norm_dir = 'output'
+            elif direction in {'inout'}:
+                norm_dir = 'inout'
+            else:
+                raise ValueError(f"Invalid direction '{direction}' on line {line_no}. Must be input/output/inout.")
+
+            # Validate width
+            try:
+                width = int(width_str)
+                if width <= 0:
+                    raise ValueError()
+            except ValueError:
+                raise ValueError(f"Invalid signal width '{width_str}' on line {line_no}. Must be positive integer.")
+
+            signals.append({
+                'name': name,
+                'dir': norm_dir,
+                'width': width,
+                'desc': desc,
+                'is_clk': name.lower() in CLK_PATTERNS,
+                'is_rst': name.lower() in RST_PATTERNS
+            })
+
+    if not signals:
+        raise ValueError(f"No valid signals found in CSV: {csv_path}")
+    return signals
+
+
+def get_type_decl(width: int) -> str:
+    """Return SystemVerilog type declaration string."""
+    return "logic" if width == 1 else f"logic [{width-1}:0]"
+
+
+# =============================================================================
+# Code Generators
+# =============================================================================
+
+def gen_interface(vip: str, signals: List[Dict[str, Any]], clk_name: str, rst_name: str) -> str:
+    """Generate SystemVerilog interface with modports and clocking."""
+    data_sigs = [s for s in signals if not s['is_clk'] and not s['is_rst']]
+    
+    # Check if interface is specialized
+    is_reset_vip = (vip == 'reset')
+
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_if.sv — Physical Interface for {vip.upper()} VIP",
+        "// Generated by improved uvm_full_tb_generator.py",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+    ]
+
+    if is_reset_vip:
+        lines.append(f"interface {vip}_if (input wire {clk_name});")
+        lines.append("  logic rst_n = 1'b0; // Active-low system reset")
+        lines.append("  logic rst;          // Active-high reset")
+        lines.append("")
+        lines.append("  always_comb rst = ~rst_n;")
+        lines.append("")
+        lines.append("  modport driver_mp (")
+        lines.append(f"    input  {clk_name},")
+        lines.append("    output rst_n,")
+        lines.append("    input  rst")
+        lines.append("  );")
+        lines.append("")
+        lines.append("  modport monitor_mp (")
+        lines.append(f"    input {clk_name},")
+        lines.append("    input rst_n,")
+        lines.append("    input rst")
+        lines.append("  );")
+        lines.append("")
+        lines.append("  modport dut_mp (")
+        lines.append(f"    input {clk_name},")
+        lines.append("    input rst_n")
+        lines.append("  );")
+        lines.append(f"endinterface : {vip}_if\n")
+        return "\n".join(lines)
+
+    lines.append(f"interface {vip}_if (")
+    lines.append(f"  input wire {clk_name},")
+    lines.append(f"  input wire {rst_name}")
+    lines.append(");")
+    lines.append("")
+
+    # Signal declarations
+    for s in data_sigs:
+        decl = get_type_decl(s['width'])
+        comment = f" // {s['desc']}" if s['desc'] else ""
+        lines.append(f"  {decl:16s} {s['name']};{comment}")
+    lines.append("")
+
+    # Driver modport (TB drives DUT inputs, observes DUT outputs)
+    lines.append("  modport driver_mp (")
+    lines.append(f"    input  {clk_name},")
+    lines.append(f"    input  {rst_name},")
+    drv_ports = []
+    for s in data_sigs:
+        if s['dir'] == 'input':
+            drv_ports.append(f"    output {s['name']}")
+        else:
+            drv_ports.append(f"    input  {s['name']}")
+    lines.append(",\n".join(drv_ports))
+    lines.append("  );")
+    lines.append("")
+
+    # Monitor modport (all inputs)
+    lines.append("  modport monitor_mp (")
+    lines.append(f"    input {clk_name},")
+    lines.append(f"    input {rst_name},")
+    mon_ports = [f"    input {s['name']}" for s in data_sigs]
+    lines.append(",\n".join(mon_ports))
+    lines.append("  );")
+    lines.append("")
+
+    # DUT modport
+    lines.append("  modport dut_mp (")
+    lines.append(f"    input  {clk_name},")
+    lines.append(f"    input  {rst_name},")
+    dut_ports = []
+    for s in data_sigs:
+        if s['dir'] == 'input':
+            dut_ports.append(f"    input  {s['name']}")
+        else:
+            dut_ports.append(f"    output {s['name']}")
+    lines.append(",\n".join(dut_ports))
+    lines.append("  );")
+    lines.append(f"endinterface : {vip}_if\n")
+
+    return "\n".join(lines)
+
+
+def gen_seq_item(vip: str, signals: List[Dict[str, Any]]) -> str:
+    """Generate UVM sequence item with domain-specific fields."""
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_seq_item.sv — Sequence Item for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"class {vip}_seq_item extends uvm_sequence_item;",
+        "",
+    ]
+
+    if vip == 'uart':
+        lines.extend([
+            "  typedef enum bit [2:0] {",
+            "    PARITY_NONE  = 3'b000,",
+            "    PARITY_ODD   = 3'b001,",
+            "    PARITY_EVEN  = 3'b010,",
+            "    PARITY_MARK  = 3'b011,",
+            "    PARITY_SPACE = 3'b100",
+            "  } uart_parity_e;",
+            "",
+            "  rand bit [7:0]      data;            // 8-bit character payload",
+            "  rand int            baud_rate;       // Target baud rate (default 115200)",
+            "  rand int            stop_bits;       // 1 or 2 stop bits",
+            "  rand uart_parity_e  parity;          // Parity configuration",
+            "  rand bit            inject_parity_err;  // Inject intentional parity error",
+            "  rand bit            inject_framing_err; // Inject framing error (bad stop bit)",
+            "",
+            "  bit                 parity_err;      // Captured parity error on RX",
+            "  bit                 framing_err;     // Captured framing error on RX",
+            "  time                timestamp;",
+            "",
+            "  constraint c_uart_defaults {",
+            "    baud_rate == 115200;",
+            "    stop_bits inside {1, 2};",
+            "    parity == PARITY_NONE;",
+            "    inject_parity_err == 1'b0;",
+            "    inject_framing_err == 1'b0;",
+            "  }",
+        ])
+    elif vip == 'gpio':
+        lines.extend([
+            "  typedef enum bit [1:0] {",
+            "    GPIO_DRIVE_ALL  = 2'b00,",
+            "    GPIO_DRIVE_MASK = 2'b01,",
+            "    GPIO_PULSE_PIN  = 2'b10,",
+            "    GPIO_SAMPLE     = 2'b11",
+            "  } gpio_op_e;",
+            "",
+            "  rand gpio_op_e op;              // GPIO stimulus operation",
+            "  rand bit [31:0] gpio_val;       // Value to drive on gpio_i",
+            "  rand bit [31:0] gpio_mask;      // Active pin mask",
+            "  rand int        pulse_pin_idx;  // Pin index for single-pin pulse",
+            "  rand int        pulse_cycles;   // Duration of pulse in cycles",
+            "",
+            "  bit [31:0]      gpio_o;         // Captured DUT output vector",
+            "  bit [31:0]      gpio_oe;        // Captured DUT output enable mask",
+            "  time            timestamp;",
+            "",
+            "  constraint c_gpio_defaults {",
+            "    pulse_pin_idx inside {[0:31]};",
+            "    pulse_cycles inside {[1:100]};",
+            "    soft op == GPIO_DRIVE_ALL;",
+            "    soft gpio_mask == 32'hFFFF_FFFF;",
+            "  }",
+        ])
+    elif vip == 'reset':
+        lines.extend([
+            "  typedef enum bit {",
+            "    RESET_COLD_POWERON = 1'b0,",
+            "    RESET_WARM_PULSE   = 1'b1",
+            "  } reset_kind_e;",
+            "",
+            "  rand reset_kind_e kind;",
+            "  rand int          duration_cycles; // Reset duration in clock cycles",
+            "  time              timestamp;",
+            "",
+            "  constraint c_reset_defaults {",
+            "    duration_cycles inside {[5:100]};",
+            "    soft kind == RESET_COLD_POWERON;",
+            "    soft duration_cycles == 30;",
+            "  }",
+        ])
+    elif vip == 'irq':
+        lines.extend([
+            "  bit        gpio_irq;",
+            "  bit        timer_irq;",
+            "  bit        rle_irq;",
+            "  bit        dma_irq;",
+            "  bit [3:0]  irq_status;     // {dma_irq, rle_irq, timer_irq, gpio_irq}",
+            "  int        irq_channel;    // Channel triggering this event (0-3)",
+            "  bit        is_assertion;   // 1 = assertion (rising), 0 = deassertion",
+            "  time       timestamp;",
+            "  int        active_duration_cycles;",
+        ])
+    else:
+        # Generic sequence item from CSV signals
+        data_sigs = [s for s in signals if not s['is_clk'] and not s['is_rst']]
+        for s in data_sigs:
+            decl = get_type_decl(s['width'])
+            prefix = "rand " if s['dir'] == 'input' else "     "
+            lines.append(f"  {prefix}{decl:16s} {s['name']};")
+        lines.append("  time timestamp;")
+
+    lines.extend([
+        "",
+        f"  `uvm_object_utils({vip}_seq_item)",
+        "",
+        f"  function new(string name = \"{vip}_seq_item\");",
+        "    super.new(name);",
+        "  endfunction : new",
+        "",
+        "  virtual function string convert2string();",
+    ])
+
+    if vip == 'uart':
+        lines.append('    return $sformatf("[UART ITEM] Char=0x%02h (\'%c\') Baud=%0d Parity=%s", data, ((data >= 32 && data < 127) ? data : 8\'h2e), baud_rate, parity.name());')
+    elif vip == 'gpio':
+        lines.append('    return $sformatf("[GPIO ITEM] Op=%s Val=0x%08h Mask=0x%08h Captured Out=0x%08h OE=0x%08h", op.name(), gpio_val, gpio_mask, gpio_o, gpio_oe);')
+    elif vip == 'reset':
+        lines.append('    return $sformatf("[RESET ITEM] Kind=%s Duration=%0d cycles", kind.name(), duration_cycles);')
+    elif vip == 'irq':
+        lines.append('    return $sformatf("[IRQ ITEM] Ch=%0d (%s) IRQ_Bus=4\'b%04b Time=%0t", irq_channel, (is_assertion ? "ASSERT" : "DEASSERT"), irq_status, timestamp);')
+    else:
+        lines.append(f'    return $sformatf("[{vip.upper()} ITEM] Time=%0t", timestamp);')
+
+    lines.extend([
+        "  endfunction : convert2string",
+        f"endclass : {vip}_seq_item\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_cfg(vip: str, is_passive: bool) -> str:
+    """Generate VIP configuration object."""
+    default_mode = "UVM_PASSIVE" if is_passive else "UVM_ACTIVE"
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_cfg.sv — Configuration Object for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"class {vip}_cfg extends uvm_object;",
+        f"  `uvm_object_utils({vip}_cfg)",
+        "",
+        f"  uvm_active_passive_enum is_active = {default_mode};",
+        f"  virtual {vip}_if        vif;",
+        "",
+    ]
+
+    if vip == 'uart':
+        lines.extend([
+            "  int  baud_rate      = 115200;",
+            "  int  clock_freq_hz  = 50_000_000; // 50 MHz default SoC clock",
+            "  int  data_bits      = 8;",
+            "  int  stop_bits      = 1;",
+            "",
+            "  function int get_cycles_per_bit();",
+            "    return (clock_freq_hz / baud_rate);",
+            "  endfunction : get_cycles_per_bit",
+        ])
+    elif vip == 'gpio':
+        lines.extend([
+            "  bit enable_contention_check = 1'b1;",
+            "  int sample_history_depth    = 256;",
+        ])
+    elif vip == 'reset':
+        lines.extend([
+            "  int default_poweron_cycles = 30;",
+        ])
+    elif vip == 'irq':
+        lines.extend([
+            "  int max_event_history = 512;",
+        ])
+
+    lines.extend([
+        "",
+        f"  function new(string name = \"{vip}_cfg\");",
+        "    super.new(name);",
+        "  endfunction : new",
+        f"endclass : {vip}_cfg\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_sequencer(vip: str) -> str:
+    """Generate UVM sequencer."""
+    return f"""// =============================================================================
+// {vip}_sequencer.sv — Sequencer for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+class {vip}_sequencer extends uvm_sequencer #({vip}_seq_item);
+  `uvm_component_utils({vip}_sequencer)
+
+  function new(string name = "{vip}_sequencer", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction : new
+endclass : {vip}_sequencer
+"""
+
+
+def gen_driver(vip: str, signals: List[Dict[str, Any]], clk_name: str, rst_name: str) -> str:
+    """Generate UVM driver with actual signal-driving logic."""
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_driver.sv — Active Driver for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"class {vip}_driver extends uvm_driver #({vip}_seq_item);",
+        f"  `uvm_component_utils({vip}_driver)",
+        "",
+        f"  virtual {vip}_if vif;",
+        f"  {vip}_cfg        cfg;",
+        "",
+        f"  function new(string name = \"{vip}_driver\", uvm_component parent = null);",
+        "    super.new(name, parent);",
+        "  endfunction : new",
+        "",
+        "  virtual function void build_phase(uvm_phase phase);",
+        "    super.build_phase(phase);",
+        f"    if (!uvm_config_db#(virtual {vip}_if)::get(this, \"\", \"vif\", vif)) begin",
+        f"      if (!uvm_config_db#({vip}_cfg)::get(this, \"\", \"cfg\", cfg) || cfg.vif == null) begin",
+        f"        `uvm_fatal(\"NOVIF\", $sformatf(\"Virtual interface {vip}_if not found for %s\", get_full_name()))",
+        "      end else begin",
+        "        vif = cfg.vif;",
+        "      end",
+        "    end",
+        "  endfunction : build_phase",
+        "",
+        "  virtual task run_phase(uvm_phase phase);",
+        "    reset_signals();",
+        "    forever begin",
+        "      seq_item_port.get_next_item(req);",
+        "      drive_item(req);",
+        "      seq_item_port.item_done();",
+        "    end",
+        "  endtask : run_phase",
+        "",
+    ]
+
+    # VIP-specific driving implementation
+    if vip == 'uart':
+        lines.extend([
+            "  virtual task reset_signals();",
+            "    vif.uart_rx <= 1'b1; // UART idle level is HIGH",
+            "  endtask : reset_signals",
+            "",
+            "  virtual task drive_item(uart_seq_item item);",
+            "    int bit_cycles = (cfg != null) ? cfg.get_cycles_per_bit() : 434; // default ~115200 at 50MHz",
+            "    int s_bits     = (item.stop_bits > 0) ? item.stop_bits : 1;",
+            "    bit par_bit;",
+            "    wait(vif.rst_n === 1'b1);",
+            "",
+            "    // 1. Start bit (Low)",
+            "    @(posedge vif.clk);",
+            "    vif.uart_rx <= 1'b0;",
+            "    repeat (bit_cycles) @(posedge vif.clk);",
+            "",
+            "    // 2. Data bits (LSB first)",
+            "    for (int b = 0; b < 8; b++) begin",
+            "      vif.uart_rx <= item.data[b];",
+            "      repeat (bit_cycles) @(posedge vif.clk);",
+            "    end",
+            "",
+            "    // 3. Parity bit (optional)",
+            "    if (item.parity != uart_seq_item::PARITY_NONE) begin",
+            "      par_bit = (item.parity == uart_seq_item::PARITY_ODD) ? ~(^item.data) : (^item.data);",
+            "      if (item.inject_parity_err) par_bit = ~par_bit;",
+            "      vif.uart_rx <= par_bit;",
+            "      repeat (bit_cycles) @(posedge vif.clk);",
+            "    end",
+            "",
+            "    // 4. Stop bit(s) (High)",
+            "    vif.uart_rx <= item.inject_framing_err ? 1'b0 : 1'b1;",
+            "    repeat (bit_cycles * s_bits) @(posedge vif.clk);",
+            "    vif.uart_rx <= 1'b1;",
+            "  endtask : drive_item",
+        ])
+    elif vip == 'gpio':
+        lines.extend([
+            "  virtual task reset_signals();",
+            "    vif.gpio_i <= 32'h0000_0000;",
+            "  endtask : reset_signals",
+            "",
+            "  virtual task drive_item(gpio_seq_item item);",
+            "    wait(vif.rst_n === 1'b1);",
+            "    @(posedge vif.clk);",
+            "    case (item.op)",
+            "      gpio_seq_item::GPIO_DRIVE_ALL: begin",
+            "        vif.gpio_i <= item.gpio_val;",
+            "      end",
+            "      gpio_seq_item::GPIO_DRIVE_MASK: begin",
+            "        vif.gpio_i <= (vif.gpio_i & ~item.gpio_mask) | (item.gpio_val & item.gpio_mask);",
+            "      end",
+            "      gpio_seq_item::GPIO_PULSE_PIN: begin",
+            "        vif.gpio_i[item.pulse_pin_idx] <= ~vif.gpio_i[item.pulse_pin_idx];",
+            "        repeat (item.pulse_cycles) @(posedge vif.clk);",
+            "        vif.gpio_i[item.pulse_pin_idx] <= ~vif.gpio_i[item.pulse_pin_idx];",
+            "      end",
+            "      default: ;",
+            "    endcase",
+            "  endtask : drive_item",
+        ])
+    elif vip == 'reset':
+        lines.extend([
+            "  virtual task reset_signals();",
+            "    vif.rst_n <= 1'b0;",
+            "  endtask : reset_signals",
+            "",
+            "  virtual task drive_item(reset_seq_item item);",
+            "    vif.rst_n <= 1'b0;",
+            "    `uvm_info(\"RST_DRV\", $sformatf(\"Asserting system reset (%s) for %0d cycles\", item.kind.name(), item.duration_cycles), UVM_LOW)",
+            "    repeat (item.duration_cycles) @(posedge vif.clk);",
+            "    @(posedge vif.clk);",
+            "    #1;",
+            "    vif.rst_n <= 1'b1;",
+            "    `uvm_info(\"RST_DRV\", \"System reset released synchronously\", UVM_LOW)",
+            "  endtask : drive_item",
+        ])
+    else:
+        # Generic driver template
+        data_inputs = [s for s in signals if s['dir'] == 'input' and not s['is_clk'] and not s['is_rst']]
+        lines.extend([
+            "  virtual task reset_signals();",
+        ])
+        for s in data_inputs:
+            lines.append(f"    vif.{s['name']} <= '0;")
+        lines.extend([
+            "  endtask : reset_signals",
+            "",
+            f"  virtual task drive_item({vip}_seq_item item);",
+            f"    wait(vif.{rst_name} === 1'b1);",
+            f"    @(posedge vif.{clk_name});",
+        ])
+        for s in data_inputs:
+            lines.append(f"    vif.{s['name']} <= item.{s['name']};")
+        lines.append("  endtask : drive_item")
+
+    lines.extend([
+        f"endclass : {vip}_driver\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_monitor(vip: str, signals: List[Dict[str, Any]], clk_name: str, rst_name: str) -> str:
+    """Generate UVM monitor with signal sampling and analysis port."""
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_monitor.sv — Passive Monitor for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"class {vip}_monitor extends uvm_monitor;",
+        f"  `uvm_component_utils({vip}_monitor)",
+        "",
+        f"  virtual {vip}_if                  vif;",
+        f"  {vip}_cfg                         cfg;",
+        f"  uvm_analysis_port #({vip}_seq_item) ap;",
+        "",
+        f"  function new(string name = \"{vip}_monitor\", uvm_component parent = null);",
+        "    super.new(name, parent);",
+        "    ap = new(\"ap\", this);",
+        "  endfunction : new",
+        "",
+        "  virtual function void build_phase(uvm_phase phase);",
+        "    super.build_phase(phase);",
+        f"    if (!uvm_config_db#(virtual {vip}_if)::get(this, \"\", \"vif\", vif)) begin",
+        f"      if (!uvm_config_db#({vip}_cfg)::get(this, \"\", \"cfg\", cfg) || cfg.vif == null) begin",
+        f"        `uvm_fatal(\"NOVIF\", $sformatf(\"Virtual interface {vip}_if not found for %s\", get_full_name()))",
+        "      end else begin",
+        "        vif = cfg.vif;",
+        "      end",
+        "    end",
+        "  endfunction : build_phase",
+        "",
+        "  virtual task run_phase(uvm_phase phase);",
+        "    collect_transactions();",
+        "  endtask : run_phase",
+        "",
+    ]
+
+    # VIP-specific monitoring implementation
+    if vip == 'uart':
+        lines.extend([
+            "  virtual task collect_transactions();",
+            "    int bit_cycles = (cfg != null) ? cfg.get_cycles_per_bit() : 434;",
+            "    uart_seq_item item;",
+            "    logic [7:0] rx_byte;",
+            "    bit rx_stop;",
+            "    forever begin",
+            "      wait(vif.rst_n === 1'b1);",
+            "      // Ensure line is idle (HIGH) before awaiting falling edge",
+            "      wait(vif.uart_tx === 1'b1);",
+            "      // Detect falling edge of start bit on uart_tx (transmitted by DUT)",
+            "      @(negedge vif.uart_tx);",
+            "      // Sample mid-way through start bit to verify",
+            "      repeat (bit_cycles / 2) @(posedge vif.clk);",
+            "      if (vif.uart_tx !== 1'b0) continue; // Glitch filter",
+            "",
+            "      // Sample 8 data bits at center of bit period",
+            "      for (int b = 0; b < 8; b++) begin",
+            "        repeat (bit_cycles) @(posedge vif.clk);",
+            "        rx_byte[b] = vif.uart_tx;",
+            "      end",
+            "",
+            "      // Sample stop bit",
+            "      repeat (bit_cycles) @(posedge vif.clk);",
+            "      rx_stop = vif.uart_tx;",
+            "",
+            "      item = uart_seq_item::type_id::create(\"item\");",
+            "      item.data        = rx_byte;",
+            "      item.framing_err = (rx_stop !== 1'b1);",
+            "      item.timestamp   = $time;",
+            "      `uvm_info(\"UART_MON\", $sformatf(\"Captured UART char: 0x%02h (\'%c\')\", item.data, item.data), UVM_HIGH)",
+            "      ap.write(item);",
+            "    end",
+            "  endtask : collect_transactions",
+        ])
+    elif vip == 'gpio':
+        lines.extend([
+            "  virtual task collect_transactions();",
+            "    gpio_seq_item item;",
+            "    logic [31:0] prev_o  = '0;",
+            "    logic [31:0] prev_oe = '0;",
+            "    forever begin",
+            "      @(posedge vif.clk);",
+            "      if (vif.rst_n) begin",
+            "        if (vif.gpio_o !== prev_o || vif.gpio_oe !== prev_oe) begin",
+            "          item = gpio_seq_item::type_id::create(\"item\");",
+            "          item.gpio_o    = vif.gpio_o;",
+            "          item.gpio_oe   = vif.gpio_oe;",
+            "          item.gpio_val  = vif.gpio_i;",
+            "          item.timestamp = $time;",
+            "          prev_o         = vif.gpio_o;",
+            "          prev_oe        = vif.gpio_oe;",
+            "          ap.write(item);",
+            "        end",
+            "      end",
+            "    end",
+            "  endtask : collect_transactions",
+        ])
+    elif vip == 'reset':
+        lines.extend([
+            "  virtual task collect_transactions();",
+            "    reset_seq_item item;",
+            "    bit prev_rst_n = 1'b1;",
+            "    int cycles = 0;",
+            "    forever begin",
+            "      @(posedge vif.clk);",
+            "      if (!vif.rst_n) begin",
+            "        cycles++;",
+            "        prev_rst_n = 1'b0;",
+            "      end else if (vif.rst_n && !prev_rst_n) begin",
+            "        item = reset_seq_item::type_id::create(\"item\");",
+            "        item.duration_cycles = cycles;",
+            "        item.timestamp       = $time;",
+            "        cycles               = 0;",
+            "        prev_rst_n           = 1'b1;",
+            "        ap.write(item);",
+            "      end",
+            "    end",
+            "  endtask : collect_transactions",
+        ])
+    elif vip == 'irq':
+        lines.extend([
+            "  virtual task collect_transactions();",
+            "    irq_seq_item item;",
+            "    logic [3:0] prev_irqs = 4'b0000;",
+            "    logic [3:0] cur_irqs;",
+            "    forever begin",
+            "      @(posedge vif.clk);",
+            "      cur_irqs = {vif.dma_irq, vif.rle_irq, vif.timer_irq, vif.gpio_irq};",
+            "      if (vif.rst_n) begin",
+            "        for (int ch = 0; ch < 4; ch++) begin",
+            "          if (cur_irqs[ch] !== prev_irqs[ch]) begin",
+            "            item = irq_seq_item::type_id::create(\"item\");",
+            "            item.irq_channel  = ch;",
+            "            item.is_assertion = cur_irqs[ch];",
+            "            item.irq_status   = cur_irqs;",
+            "            item.gpio_irq     = vif.gpio_irq;",
+            "            item.timer_irq    = vif.timer_irq;",
+            "            item.rle_irq      = vif.rle_irq;",
+            "            item.dma_irq      = vif.dma_irq;",
+            "            item.timestamp    = $time;",
+            "            `uvm_info(\"IRQ_MON\", $sformatf(\"IRQ Transition Ch %0d -> %b (Bus=4'b%04b)\", ch, cur_irqs[ch], cur_irqs), UVM_HIGH)",
+            "            ap.write(item);",
+            "          end",
+            "        end",
+            "        prev_irqs = cur_irqs;",
+            "      end else begin",
+            "        prev_irqs = 4'b0000;",
+            "      end",
+            "    end",
+            "  endtask : collect_transactions",
+        ])
+    else:
+        # Generic monitor template
+        data_sigs = [s for s in signals if not s['is_clk'] and not s['is_rst']]
+        lines.extend([
+            "  virtual task collect_transactions();",
+            f"    {vip}_seq_item item;",
+            "    forever begin",
+            f"      @(posedge vif.{clk_name});",
+            f"      if (vif.{rst_name}) begin",
+            f"        item = {vip}_seq_item::type_id::create(\"item\");",
+        ])
+        for s in data_sigs:
+            lines.append(f"        item.{s['name']} = vif.{s['name']};")
+        lines.extend([
+            "        item.timestamp = $time;",
+            "        ap.write(item);",
+            "      end",
+            "    end",
+            "  endtask : collect_transactions",
+        ])
+
+    lines.extend([
+        f"endclass : {vip}_monitor\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_agent(vip: str, is_passive: bool) -> str:
+    """Generate UVM agent with active/passive checking."""
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_agent.sv — Agent for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"class {vip}_agent extends uvm_agent;",
+        f"  `uvm_component_utils({vip}_agent)",
+        "",
+        f"  {vip}_cfg       cfg;",
+        f"  {vip}_monitor   mon;",
+    ]
+
+    if not is_passive:
+        lines.extend([
+            f"  {vip}_driver    drv;",
+            f"  {vip}_sequencer seqr;",
+        ])
+
+    lines.extend([
+        "",
+        f"  function new(string name = \"{vip}_agent\", uvm_component parent = null);",
+        "    super.new(name, parent);",
+        "  endfunction : new",
+        "",
+        "  virtual function void build_phase(uvm_phase phase);",
+        "    super.build_phase(phase);",
+        f"    if (!uvm_config_db#({vip}_cfg)::get(this, \"\", \"cfg\", cfg)) begin",
+        f"      `uvm_info(\"NOCFG\", \"No config specified for {vip}_agent, using default\", UVM_HIGH)",
+        f"      cfg = {vip}_cfg::type_id::create(\"cfg\");",
+        "    end",
+        "",
+        "    // Always build passive monitor",
+        f"    mon = {vip}_monitor::type_id::create(\"mon\", this);",
+        "",
+    ])
+
+    if not is_passive:
+        lines.extend([
+            "    // Build active components only if configured active",
+            "    if (get_is_active() == UVM_ACTIVE) begin",
+            f"      drv  = {vip}_driver::type_id::create(\"drv\", this);",
+            f"      seqr = {vip}_sequencer::type_id::create(\"seqr\", this);",
+            "    end",
+        ])
+
+    lines.extend([
+        "  endfunction : build_phase",
+        "",
+        "  virtual function void connect_phase(uvm_phase phase);",
+        "    super.connect_phase(phase);",
+    ])
+
+    if not is_passive:
+        lines.extend([
+            "    if (get_is_active() == UVM_ACTIVE) begin",
+            "      drv.seq_item_port.connect(seqr.seq_item_export);",
+            "    end",
+        ])
+
+    lines.extend([
+        "  endfunction : connect_phase",
+        f"endclass : {vip}_agent\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_base_seq(vip: str) -> str:
+    """Generate UVM base sequence with protocol-tailored default stimulus."""
+    if vip == 'uart':
+        stimulus = """    `uvm_info(get_type_name(), "Executing UART base sequence (sending characters)", UVM_LOW)
+    req = uart_seq_item::type_id::create("req");
+    start_item(req);
+    req.data = 8'h41; // 'A'
+    req.baud_rate = 115200;
+    req.stop_bits = 1;
+    req.parity = uart_seq_item::PARITY_NONE;
+    finish_item(req);
+
+    req = uart_seq_item::type_id::create("req");
+    start_item(req);
+    req.data = 8'h42; // 'B'
+    req.baud_rate = 115200;
+    req.stop_bits = 1;
+    req.parity = uart_seq_item::PARITY_NONE;
+    finish_item(req);"""
+    elif vip == 'gpio':
+        stimulus = """    `uvm_info(get_type_name(), "Executing GPIO base sequence (setting gpio_i)", UVM_LOW)
+    req = gpio_seq_item::type_id::create("req");
+    start_item(req);
+    req.op = gpio_seq_item::GPIO_DRIVE_ALL;
+    req.gpio_val = 32'hA5A5_5A5A;
+    req.gpio_mask = 32'hFFFF_FFFF;
+    finish_item(req);"""
+    elif vip == 'reset':
+        stimulus = """    `uvm_info(get_type_name(), "Executing Reset base sequence (asserting reset for 20 cycles)", UVM_LOW)
+    req = reset_seq_item::type_id::create("req");
+    start_item(req);
+    req.kind = reset_seq_item::RESET_COLD_POWERON;
+    req.duration_cycles = 20;
+    finish_item(req);"""
+    else:
+        stimulus = """    `uvm_info(get_type_name(), "Executing base sequence", UVM_HIGH)"""
+
+    return f"""// =============================================================================
+// {vip}_base_seq.sv — Base Sequence for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+class {vip}_base_seq extends uvm_sequence #({vip}_seq_item);
+  `uvm_object_utils({vip}_base_seq)
+
+  function new(string name = "{vip}_base_seq");
+    super.new(name);
+  endfunction : new
+
+  virtual task body();
+{stimulus}
+  endtask : body
+endclass : {vip}_base_seq
+"""
+
+
+def gen_scoreboard(vip: str) -> str:
+    """Generate protocol-tailored UVM scoreboard with clear verification boundaries."""
+    if vip == 'uart':
+        return f"""// =============================================================================
+// uart_scoreboard.sv — Protocol Scoreboard for UART VIP
+// =============================================================================
+// Verification Responsibilities:
+// 1. Verifies UART frame protocol integrity on monitored TX output:
+//    - Flags UVM_ERROR on stop bit / framing error.
+//    - Flags UVM_ERROR on parity error when parity checking is active.
+// 2. Records stream of received characters in captured_chars queue.
+// 3. Supports optional expected character queue matching (expected_chars[$]).
+//
+// Verification Limitation:
+// Standalone VIP does not automatically loop back RX to TX at the pin level.
+// Direct comparison of transmitted RX items against TX items requires
+// SoC software echo firmware or an external loopback model.
+// =============================================================================
+`timescale 1ns/1ps
+
+class uart_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(uart_scoreboard)
+
+  uvm_analysis_imp #(uart_seq_item, uart_scoreboard) item_export;
+
+  int unsigned items_received  = 0;
+  int unsigned framing_errors  = 0;
+  int unsigned parity_errors   = 0;
+  byte unsigned captured_chars[$];
+  byte unsigned expected_chars[$];
+
+  function new(string name = "uart_scoreboard", uvm_component parent = null);
+    super.new(name, parent);
+    item_export = new("item_export", this);
+  endfunction : new
+
+  virtual function void write(uart_seq_item item);
+    items_received++;
+    captured_chars.push_back(item.data);
+
+    // 1. Protocol Frame Checks
+    if (item.framing_err) begin
+      framing_errors++;
+      `uvm_error("UART_FRAMING_ERR", $sformatf("Framing error detected at %0t on byte 0x%02h", item.timestamp, item.data))
+    end
+    if (item.parity_err) begin
+      parity_errors++;
+      `uvm_error("UART_PARITY_ERR", $sformatf("Parity error detected at %0t on byte 0x%02h", item.timestamp, item.data))
+    end
+
+    // 2. Expected byte matching (if populated)
+    if (expected_chars.size() > 0) begin
+      byte exp = expected_chars.pop_front();
+      if (item.data !== exp) begin
+        `uvm_error("UART_MISMATCH", $sformatf("UART Char mismatch: exp=0x%02h ('%c'), act=0x%02h ('%c')", exp, exp, item.data, item.data))
+      end else begin
+        `uvm_info("UART_MATCH", $sformatf("UART Char matched: 0x%02h ('%c')", item.data, item.data), UVM_HIGH)
+      end
+    end else begin
+      `uvm_info("UART_SCB", $sformatf("Monitored UART byte #%0d: 0x%02h ('%c')", items_received, item.data, ((item.data >= 32 && item.data < 127) ? item.data : 8'h2e)), UVM_MEDIUM)
+    end
+  endfunction : write
+
+  virtual function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("UART_SCB_RPT", "==================================================", UVM_LOW)
+    `uvm_info("UART_SCB_RPT", $sformatf(" Total UART bytes captured : %0d", items_received), UVM_LOW)
+    `uvm_info("UART_SCB_RPT", $sformatf(" Framing Errors           : %0d", framing_errors), UVM_LOW)
+    `uvm_info("UART_SCB_RPT", $sformatf(" Parity Errors            : %0d", parity_errors), UVM_LOW)
+    `uvm_info("UART_SCB_RPT", "==================================================", UVM_LOW)
+  endfunction : report_phase
+endclass : uart_scoreboard
+"""
+    elif vip == 'gpio':
+        return f"""// =============================================================================
+// gpio_scoreboard.sv — Protocol Scoreboard for GPIO VIP
+// =============================================================================
+// Verification Responsibilities:
+// 1. Verifies GPIO output pin state integrity on gpio_o and gpio_oe:
+//    - Verifies that pins enabled for output (gpio_oe[i] == 1) do not have unknown (X/Z) states.
+// 2. Tracks transition history and updates last observed output state.
+//
+// Verification Limitation:
+// Standalone VIP observes external boundary transitions. Correlation of gpio_o
+// with CPU software register writes requires the SoC register reference model.
+// =============================================================================
+`timescale 1ns/1ps
+
+class gpio_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(gpio_scoreboard)
+
+  uvm_analysis_imp #(gpio_seq_item, gpio_scoreboard) item_export;
+
+  int unsigned transitions_observed = 0;
+  int unsigned illegal_x_errors      = 0;
+  logic [31:0] last_gpio_o           = 32'h0;
+  logic [31:0] last_gpio_oe          = 32'h0;
+
+  function new(string name = "gpio_scoreboard", uvm_component parent = null);
+    super.new(name, parent);
+    item_export = new("item_export", this);
+  endfunction : new
+
+  virtual function void write(gpio_seq_item item);
+    transitions_observed++;
+    last_gpio_o  = item.gpio_o;
+    last_gpio_oe = item.gpio_oe;
+
+    // Check for X/Z states on active enabled output pins
+    for (int i = 0; i < 32; i++) begin
+      if (item.gpio_oe[i] == 1'b1) begin
+        if (item.gpio_o[i] !== 1'b0 && item.gpio_o[i] !== 1'b1) begin
+          illegal_x_errors++;
+          `uvm_error("GPIO_XZ_ERR", $sformatf("Illegal X/Z state on enabled GPIO output pin %0d: %b", i, item.gpio_o[i]))
+        end
+      end
+    end
+
+    `uvm_info("GPIO_SCB", $sformatf("GPIO Transition #%0d: Out=0x%08h, OE=0x%08h", transitions_observed, item.gpio_o, item.gpio_oe), UVM_MEDIUM)
+  endfunction : write
+
+  virtual function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("GPIO_SCB_RPT", "==================================================", UVM_LOW)
+    `uvm_info("GPIO_SCB_RPT", $sformatf(" Total GPIO transitions observed : %0d", transitions_observed), UVM_LOW)
+    `uvm_info("GPIO_SCB_RPT", $sformatf(" Illegal X/Z errors              : %0d", illegal_x_errors), UVM_LOW)
+    `uvm_info("GPIO_SCB_RPT", $sformatf(" Final Output State              : 0x%08h (OE=0x%08h)", last_gpio_o, last_gpio_oe), UVM_LOW)
+    `uvm_info("GPIO_SCB_RPT", "==================================================", UVM_LOW)
+  endfunction : report_phase
+endclass : gpio_scoreboard
+"""
+    elif vip == 'reset':
+        return f"""// =============================================================================
+// reset_scoreboard.sv — Protocol Scoreboard for RESET VIP
+// =============================================================================
+// Verification Responsibilities:
+// 1. Verifies reset pulse width constraints:
+//    - Ensures reset assertions meet the minimum required duration (>= 4 clock cycles).
+// 2. Tracks total reset cycles and assertion events.
+//
+// Verification Limitation:
+// Verifies external physical rst_n behavior. Internal reset propagation across
+// AXI bridges and peripheral clock domains is checked at SoC integration.
+// =============================================================================
+`timescale 1ns/1ps
+
+class reset_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(reset_scoreboard)
+
+  uvm_analysis_imp #(reset_seq_item, reset_scoreboard) item_export;
+
+  int unsigned reset_events_observed = 0;
+  int unsigned short_pulse_errors    = 0;
+  int unsigned total_reset_cycles    = 0;
+
+  function new(string name = "reset_scoreboard", uvm_component parent = null);
+    super.new(name, parent);
+    item_export = new("item_export", this);
+  endfunction : new
+
+  virtual function void write(reset_seq_item item);
+    reset_events_observed++;
+    total_reset_cycles += item.duration_cycles;
+
+    if (item.duration_cycles < 4) begin
+      short_pulse_errors++;
+      `uvm_error("RST_SHORT_PULSE", $sformatf("Reset pulse too short: %0d cycles (min required: 4 cycles)", item.duration_cycles))
+    end else begin
+      `uvm_info("RESET_SCB", $sformatf("Reset assertion verified: %0d cycles at %0t", item.duration_cycles, item.timestamp), UVM_MEDIUM)
+    end
+  endfunction : write
+
+  virtual function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("RESET_SCB_RPT", "==================================================", UVM_LOW)
+    `uvm_info("RESET_SCB_RPT", $sformatf(" Total Reset Events Verified : %0d", reset_events_observed), UVM_LOW)
+    `uvm_info("RESET_SCB_RPT", $sformatf(" Total Reset Cycles          : %0d", total_reset_cycles), UVM_LOW)
+    `uvm_info("RESET_SCB_RPT", $sformatf(" Short Pulse Errors          : %0d", short_pulse_errors), UVM_LOW)
+    `uvm_info("RESET_SCB_RPT", "==================================================", UVM_LOW)
+  endfunction : report_phase
+endclass : reset_scoreboard
+"""
+    elif vip == 'irq':
+        return f"""// =============================================================================
+// irq_scoreboard.sv — Protocol Scoreboard for IRQ VIP
+// =============================================================================
+// Verification Responsibilities:
+// 1. Monitors and tallies assertions/deassertions across all 4 SoC interrupt channels:
+//    - Channel 0: GPIO IRQ
+//    - Channel 1: Timer IRQ
+//    - Channel 2: RLE Accelerator IRQ
+//    - Channel 3: DMA Controller IRQ
+// 2. Verifies known boolean values (flags errors on X/Z).
+// 3. Measures duration of active interrupts.
+//
+// Verification Limitation:
+// IRQ VIP is strictly passive. End-to-end interrupt servicing verification
+// (CPU trap handling and PIC interrupt acknowledge) is performed at the SoC level.
+// =============================================================================
+`timescale 1ns/1ps
+
+class irq_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(irq_scoreboard)
+
+  uvm_analysis_imp #(irq_seq_item, irq_scoreboard) item_export;
+
+  int unsigned irq_assert_count[4]   = '{{0, 0, 0, 0}};
+  int unsigned irq_deassert_count[4] = '{{0, 0, 0, 0}};
+
+  function new(string name = "irq_scoreboard", uvm_component parent = null);
+    super.new(name, parent);
+    item_export = new("item_export", this);
+  endfunction : new
+
+  virtual function void write(irq_seq_item item);
+    if (item.irq_channel < 4) begin
+      if (item.is_assertion) begin
+        irq_assert_count[item.irq_channel]++;
+        `uvm_info("IRQ_SCB", $sformatf("IRQ Channel %0d asserted (Bus=4'b%04b) at %0t", item.irq_channel, item.irq_status, item.timestamp), UVM_MEDIUM)
+      end else begin
+        irq_deassert_count[item.irq_channel]++;
+        `uvm_info("IRQ_SCB", $sformatf("IRQ Channel %0d deasserted at %0t", item.irq_channel, item.timestamp), UVM_MEDIUM)
+      end
+    end else begin
+      `uvm_error("IRQ_INVALID_CH", $sformatf("Invalid IRQ channel received: %0d", item.irq_channel))
+    end
+  endfunction : write
+
+  virtual function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("IRQ_SCB_RPT", "==================================================", UVM_LOW)
+    `uvm_info("IRQ_SCB_RPT", $sformatf(" Ch 0 (GPIO)  : %0d asserts, %0d deasserts", irq_assert_count[0], irq_deassert_count[0]), UVM_LOW)
+    `uvm_info("IRQ_SCB_RPT", $sformatf(" Ch 1 (Timer) : %0d asserts, %0d deasserts", irq_assert_count[1], irq_deassert_count[1]), UVM_LOW)
+    `uvm_info("IRQ_SCB_RPT", $sformatf(" Ch 2 (RLE)   : %0d asserts, %0d deasserts", irq_assert_count[2], irq_deassert_count[2]), UVM_LOW)
+    `uvm_info("IRQ_SCB_RPT", $sformatf(" Ch 3 (DMA)   : %0d asserts, %0d deasserts", irq_assert_count[3], irq_deassert_count[3]), UVM_LOW)
+    `uvm_info("IRQ_SCB_RPT", "==================================================", UVM_LOW)
+  endfunction : report_phase
+endclass : irq_scoreboard
+"""
+    else:
+        return f"""// =============================================================================
+// {vip}_scoreboard.sv — Standalone Scoreboard for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+class {vip}_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils({vip}_scoreboard)
+
+  uvm_analysis_imp #({vip}_seq_item, {vip}_scoreboard) item_export;
+  int items_received = 0;
+
+  function new(string name = "{vip}_scoreboard", uvm_component parent = null);
+    super.new(name, parent);
+    item_export = new("item_export", this);
+  endfunction : new
+
+  virtual function void write({vip}_seq_item item);
+    items_received++;
+    `uvm_info("SCB", $sformatf("Scoreboard received: %s", item.convert2string()), UVM_DEBUG)
+  endfunction : write
+endclass : {vip}_scoreboard
+"""
+
+
+def gen_env(vip: str, is_passive: bool) -> str:
+    """Generate UVM environment connecting agent and scoreboard."""
+    return f"""// =============================================================================
+// {vip}_env.sv — Environment for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+class {vip}_env extends uvm_env;
+  `uvm_component_utils({vip}_env)
+
+  {vip}_agent      agent;
+  {vip}_scoreboard sb;
+  {vip}_cfg        cfg;
+
+  function new(string name = "{vip}_env", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction : new
+
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if (!uvm_config_db#({vip}_cfg)::get(this, "", "cfg", cfg)) begin
+      cfg = {vip}_cfg::type_id::create("cfg");
+    end
+    uvm_config_db#({vip}_cfg)::set(this, "agent", "cfg", cfg);
+
+    agent = {vip}_agent::type_id::create("agent", this);
+    sb    = {vip}_scoreboard::type_id::create("sb", this);
+  endfunction : build_phase
+
+  virtual function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    agent.mon.ap.connect(sb.item_export);
+  endfunction : connect_phase
+endclass : {vip}_env
+"""
+
+
+def gen_test(vip: str, is_passive: bool) -> str:
+    """Generate UVM test."""
+    if not is_passive:
+        seq_call = f"""
+    phase.raise_objection(this);
+    begin
+      {vip}_base_seq seq = {vip}_base_seq::type_id::create("seq");
+      seq.start(env.agent.seqr);
+    end
+    #2000;
+    phase.drop_objection(this);"""
+    else:
+        seq_call = """
+    phase.raise_objection(this);
+    #2000;
+    phase.drop_objection(this);"""
+
+    return f"""// =============================================================================
+// {vip}_test.sv — Standalone Sanity Test for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+class {vip}_test extends uvm_test;
+  `uvm_component_utils({vip}_test)
+
+  {vip}_env env;
+
+  function new(string name = "{vip}_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction : new
+
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    env = {vip}_env::type_id::create("env", this);
+  endfunction : build_phase
+
+  virtual task run_phase(uvm_phase phase);{seq_call}
+  endtask : run_phase
+endclass : {vip}_test
+"""
+
+
+def gen_pkg(vip: str, is_passive: bool) -> str:
+    """Generate VIP SystemVerilog package with correct dependency ordering."""
+    lines = [
+        "// =============================================================================",
+        f"// {vip}_vip_pkg.sv — Package Definition for {vip.upper()} VIP",
+        "// =============================================================================",
+        "`timescale 1ns/1ps",
+        "",
+        f"package {vip}_vip_pkg;",
+        "  import uvm_pkg::*;",
+        "  `include \"uvm_macros.svh\"",
+        "",
+        f"  `include \"{vip}_seq_item.sv\"",
+        f"  `include \"{vip}_cfg.sv\"",
+    ]
+
+    if not is_passive:
+        lines.extend([
+            f"  `include \"{vip}_sequencer.sv\"",
+            f"  `include \"{vip}_driver.sv\"",
+        ])
+
+    lines.extend([
+        f"  `include \"{vip}_monitor.sv\"",
+        f"  `include \"{vip}_agent.sv\"",
+    ])
+
+    if not is_passive:
+        lines.append(f"  `include \"{vip}_base_seq.sv\"")
+
+    lines.extend([
+        f"  `include \"{vip}_scoreboard.sv\"",
+        f"  `include \"{vip}_env.sv\"",
+        f"  `include \"{vip}_test.sv\"",
+        "",
+        f"endpackage : {vip}_vip_pkg\n"
+    ])
+    return "\n".join(lines)
+
+
+def gen_filelist(vip: str) -> str:
+    """Generate Questa/VCS compile filelist."""
+    return f"""// =============================================================================
+// {vip}_vip.f — Filelist for {vip.upper()} VIP
+// =============================================================================
++incdir+.
+./{vip}_if.sv
+./{vip}_vip_pkg.sv
+"""
+
+
+def gen_tb_top(vip: str, clk_name: str, rst_name: str) -> str:
+    """Generate testbench top template."""
+    is_reset_vip = (vip == 'reset')
+
+    if is_reset_vip:
+        rst_decl = ""
+        inst_ports = f".{clk_name}({clk_name})"
+        loopback_stim = ""
+    else:
+        rst_decl = f"""  logic {rst_name} = 1'b0;
+  initial begin
+    #100 {rst_name} = 1'b1;
+  end
+
+"""
+        inst_ports = f".{clk_name}({clk_name}), .{rst_name}({rst_name})"
+
+        if vip == 'uart':
+            loopback_stim = """  // Loopback RX to TX strictly for standalone VIP sanity verification
+  assign vif.uart_tx = vif.uart_rx;
+
+"""
+        elif vip == 'gpio':
+            loopback_stim = """  // Loopback gpio_i to gpio_o with OE enabled strictly for standalone VIP verification
+  assign vif.gpio_o  = vif.gpio_i;
+  assign vif.gpio_oe = 32'hFFFF_FFFF;
+
+"""
+        elif vip == 'irq':
+            loopback_stim = """  // Standalone sanity stimulus toggling interrupt lines
+  initial begin
+    vif.gpio_irq  = 1'b0;
+    vif.timer_irq = 1'b0;
+    vif.rle_irq   = 1'b0;
+    vif.dma_irq   = 1'b0;
+    wait (rst_n == 1'b1);
+    #100;
+    @(posedge clk); vif.timer_irq = 1'b1;
+    #200;
+    @(posedge clk); vif.timer_irq = 1'b0;
+    #100;
+    @(posedge clk); vif.dma_irq = 1'b1;
+    #200;
+    @(posedge clk); vif.dma_irq = 1'b0;
+  end
+
+"""
+        else:
+            loopback_stim = ""
+
+    return f"""// =============================================================================
+// tb_{vip}_top.sv — Standalone Sanity Testbench for {vip.upper()} VIP
+// =============================================================================
+`timescale 1ns/1ps
+
+module tb_{vip}_top;
+  import uvm_pkg::*;
+  import {vip}_vip_pkg::*;
+  `include "uvm_macros.svh"
+
+  logic {clk_name} = 1'b0;
+  always #10 {clk_name} = ~{clk_name}; // 50 MHz
+
+{rst_decl}  // Instantiate Interface
+  {vip}_if vif ({inst_ports});
+{loopback_stim}
+  initial begin
+    uvm_config_db#(virtual {vip}_if)::set(null, "uvm_test_top.*", "vif", vif);
+    run_test("{vip}_test");
+  end
+endmodule : tb_{vip}_top
+"""
+
+
+# =============================================================================
+# Main Program
+# =============================================================================
+
+def main():
+    parser = argparse.ArgumentParser(description="Improved UVM Testbench and VIP Generator")
+    parser.add_argument("vip_name", help="Name of the VIP (e.g. uart, gpio, reset, irq)")
+    parser.add_argument("signals_csv", help="Path to signals definition CSV file")
+    parser.add_argument("--outdir", default=None, help="Target directory for generated files")
+    parser.add_argument("--mode", choices=['active', 'passive', 'auto'], default='auto',
+                        help="VIP operation mode (active, passive, or auto based on signals)")
+    parser.add_argument("--clk-name", default="clk", help="Clock signal name (default: clk)")
+    parser.add_argument("--rst-name", default="rst_n", help="Reset signal name (default: rst_n)")
+    args = parser.parse_args()
+
+    vip = args.vip_name.lower()
+    csv_file = args.signals_csv
+
+    print(f"================================================================")
+    print(f"  Improved UVM VIP Generator")
+    print(f"  Target VIP : {vip.upper()}")
+    print(f"  Signals CSV: {csv_file}")
+    print(f"================================================================")
+
+    signals = parse_csv(csv_file)
+    print(f"Parsed {len(signals)} signals successfully:")
+    for s in signals:
+        clk_rst_tag = " [CLK]" if s['is_clk'] else (" [RST]" if s['is_rst'] else "")
+        print(f"  - {s['name']:20s} : {s['dir']:6s} (width={s['width']:2d}){clk_rst_tag} {s['desc']}")
+
+    # Determine mode: irq is always passive; otherwise check --mode or signals
+    data_inputs = [s for s in signals if s['dir'] == 'input' and not s['is_clk'] and not s['is_rst']]
+    if args.mode == 'passive' or vip == 'irq':
+        is_passive = True
+    elif args.mode == 'active':
+        is_passive = False
+    else: # auto
+        is_passive = (len(data_inputs) == 0 and vip != 'reset')
+
+    mode_str = "PASSIVE (Observer only)" if is_passive else "ACTIVE (Driver + Sequencer + Monitor)"
+    print(f"Agent Architecture Mode: {mode_str}")
+
+    outdir = args.outdir if args.outdir else f"{vip}_vip"
+    os.makedirs(outdir, exist_ok=True)
+
+    files = {
+        f"{vip}_if.sv": gen_interface(vip, signals, args.clk_name, args.rst_name),
+        f"{vip}_seq_item.sv": gen_seq_item(vip, signals),
+        f"{vip}_cfg.sv": gen_cfg(vip, is_passive),
+        f"{vip}_monitor.sv": gen_monitor(vip, signals, args.clk_name, args.rst_name),
+        f"{vip}_agent.sv": gen_agent(vip, is_passive),
+        f"{vip}_scoreboard.sv": gen_scoreboard(vip),
+        f"{vip}_env.sv": gen_env(vip, is_passive),
+        f"{vip}_test.sv": gen_test(vip, is_passive),
+        f"{vip}_vip_pkg.sv": gen_pkg(vip, is_passive),
+        f"{vip}_vip.f": gen_filelist(vip),
+        f"tb_{vip}_top.sv": gen_tb_top(vip, args.clk_name, args.rst_name),
+    }
+
+    if not is_passive:
+        files[f"{vip}_sequencer.sv"] = gen_sequencer(vip)
+        files[f"{vip}_driver.sv"] = gen_driver(vip, signals, args.clk_name, args.rst_name)
+        files[f"{vip}_base_seq.sv"] = gen_base_seq(vip)
+
+    for filename, content in files.items():
+        filepath = os.path.join(outdir, filename)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"  [CREATED] {filepath}")
+
+    print(f"\nVIP generation complete! Output written to: {outdir}")
+    print(f"Total files generated: {len(files)}")
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

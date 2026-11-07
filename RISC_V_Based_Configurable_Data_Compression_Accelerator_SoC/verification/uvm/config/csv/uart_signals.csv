@@ -1,0 +1,9 @@
+# =============================================================================
+# uart_signals.csv — UART Interface Signal Definition
+# Verified against SoC RTL: soc_core_top.sv, soc_top.v, axi_uart_top.v
+# =============================================================================
+# signal_name,direction,width,description
+clk,input,1,System Clock (50 MHz)
+rst_n,input,1,Active-low asynchronous system reset
+uart_rx,input,1,UART Serial Receive line (driven into DUT)
+uart_tx,output,1,UART Serial Transmit line (driven by DUT)

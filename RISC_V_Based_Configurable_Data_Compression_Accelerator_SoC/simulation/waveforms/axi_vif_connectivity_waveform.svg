@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 936" width="1600" height="936">
+<defs>
+  <style>
+    .bg { fill: #121820; }
+    .grid { stroke: #263238; stroke-width: 1; stroke-dasharray: 4,4; }
+    .grid-major { stroke: #37474f; stroke-width: 1.5; }
+    .label { font-family: "DejaVu Sans", "Helvetica", Arial, sans-serif; font-size: 13px; font-weight: bold; fill: #eceff1; }
+    .sublabel { font-family: "DejaVu Sans", "Helvetica", Arial, sans-serif; font-size: 11px; fill: #90a4ae; }
+    .time-label { font-family: "DejaVu Sans Mono", monospace; font-size: 11px; fill: #78909c; text-anchor: middle; }
+    .bus-text { font-family: "DejaVu Sans Mono", monospace; font-size: 11px; font-weight: bold; fill: #ffffff; text-anchor: middle; }
+    .title { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 20px; font-weight: bold; fill: #00e676; }
+    .subtitle { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 13px; fill: #cfd8dc; }
+    .annotation { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 12px; font-weight: bold; fill: #ffea00; }
+  </style>
+</defs>
+<rect width="1600" height="936" class="bg"/>
+<text x="40" y="38" class="title">UVM Virtual Interface Connectivity &amp; AXI Address/Data Handshake Demonstration</text>
+<text x="40" y="62" class="subtitle">DUT: VeeR EL2 SoC | Interconnect: 4x8 Crossbar | Window: 3.75 us - 4.70 us (UART LCR, LSR &amp; THR Transactions)</text>
+<line x1="280.0" y1="85" x2="280.0" y2="886" class="grid"/>
+<text x="280.0" y="78" class="time-label">3.75 us</text>
+<line x1="412.6" y1="85" x2="412.6" y2="886" class="grid"/>
+<text x="412.6" y="78" class="time-label">3.85 us</text>
+<line x1="545.3" y1="85" x2="545.3" y2="886" class="grid"/>
+<text x="545.3" y="78" class="time-label">3.95 us</text>
+<line x1="677.9" y1="85" x2="677.9" y2="886" class="grid"/>
+<text x="677.9" y="78" class="time-label">4.05 us</text>
+<line x1="810.5" y1="85" x2="810.5" y2="886" class="grid"/>
+<text x="810.5" y="78" class="time-label">4.15 us</text>
+<line x1="943.2" y1="85" x2="943.2" y2="886" class="grid"/>
+<text x="943.2" y="78" class="time-label">4.25 us</text>
+<line x1="1075.8" y1="85" x2="1075.8" y2="886" class="grid"/>
+<text x="1075.8" y="78" class="time-label">4.35 us</text>
+<line x1="1208.4" y1="85" x2="1208.4" y2="886" class="grid"/>
+<text x="1208.4" y="78" class="time-label">4.45 us</text>
+<line x1="1341.1" y1="85" x2="1341.1" y2="886" class="grid"/>
+<text x="1341.1" y="78" class="time-label">4.55 us</text>
+<line x1="1473.7" y1="85" x2="1473.7" y2="886" class="grid"/>
+<text x="1473.7" y="78" class="time-label">4.65 us</text>
+<rect x="333.1" y="90" width="79.6" height="796" fill="#ffeb3b" opacity="0.08"/>
+<text x="366.2" y="95" class="annotation" text-anchor="middle">UART_LCR (0x1000_000C=0x03)</text>
+<rect x="876.8" y="90" width="79.6" height="796" fill="#00e676" opacity="0.08"/>
+<text x="916.6" y="95" class="annotation" text-anchor="middle">UART_THR Write 'H' (0x48)</text>
+<rect x="1407.4" y="90" width="79.6" height="796" fill="#00e676" opacity="0.08"/>
+<text x="1447.2" y="95" class="annotation" text-anchor="middle">UART_THR Write 'I' (0x49)</text>
+<text x="25" y="122" class="label">tb_uvm_vif_registered_s01</text>
+<text x="25" y="136" class="sublabel">UVM Virtual Interface Registered (config_db)</text>
+<line x1="280" y1="139" x2="1540" y2="139" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 107.0 L 1540.0 107.0" fill="none" stroke="#00bcd4" stroke-width="2"/>
+<text x="25" y="164" class="label">S01_LSU AW Handshake Marker</text>
+<text x="25" y="178" class="sublabel">Testbench Marker: AW Handshake Pulse</text>
+<line x1="280" y1="181" x2="1540" y2="181" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 167.0 L 419.3 167.0 L 419.3 149.0 L 432.5 149.0 L 432.5 167.0 L 604.9 167.0 L 604.9 149.0 L 618.2 149.0 L 618.2 167.0 L 750.8 167.0 L 750.8 149.0 L 764.1 149.0 L 764.1 167.0 L 963.1 167.0 L 963.1 149.0 L 976.3 149.0 L 976.3 167.0 L 1148.7 167.0 L 1148.7 149.0 L 1162.0 149.0 L 1162.0 167.0 L 1294.6 167.0 L 1294.6 149.0 L 1307.9 149.0 L 1307.9 167.0 L 1493.6 167.0 L 1493.6 149.0 L 1506.8 149.0 L 1506.8 167.0 L 1540.0 167.0" fill="none" stroke="#ffeb3b" stroke-width="2"/>
+<text x="25" y="206" class="label">S01_LSU AWADDR</text>
+<text x="25" y="220" class="sublabel">Upstream Master Write Address</text>
+<line x1="280" y1="223" x2="1540" y2="223" stroke="#1c2530" stroke-width="1"/>
+<polygon points="280.0,200.0 286.0,191.0 320.4,191.0 326.4,200.0 320.4,209.0 286.0,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="303.2" y="204.0" class="bus-text">0x00000000</text>
+<polygon points="326.4,200.0 332.4,191.0 333.7,191.0 339.7,200.0 333.7,209.0 332.4,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="339.7,200.0 345.7,191.0 864.2,191.0 870.2,200.0 864.2,209.0 345.7,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="604.9" y="204.0" class="bus-text">0x00000000</text>
+<polygon points="870.2,200.0 876.2,191.0 877.5,191.0 883.5,200.0 877.5,209.0 876.2,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="883.5,200.0 889.5,191.0 1394.7,191.0 1400.7,200.0 1394.7,209.0 889.5,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="1142.1" y="204.0" class="bus-text">0x00000000</text>
+<polygon points="1400.7,200.0 1406.7,191.0 1408.0,191.0 1414.0,200.0 1408.0,209.0 1406.7,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="1414.0,200.0 1420.0,191.0 1534.0,191.0 1540.0,200.0 1534.0,209.0 1420.0,209.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="1477.0" y="204.0" class="bus-text">0x00000000</text>
+<text x="25" y="248" class="label">S01_LSU AWVALID</text>
+<text x="25" y="262" class="sublabel">Upstream Master AWVALID</text>
+<line x1="280" y1="265" x2="1540" y2="265" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 251.0 L 299.9 251.0 L 299.9 233.0 L 313.2 233.0 L 313.2 251.0 L 498.8 251.0 L 498.8 233.0 L 512.1 233.0 L 512.1 251.0 L 578.4 251.0 L 578.4 233.0 L 591.7 233.0 L 591.7 251.0 L 684.5 251.0 L 684.5 233.0 L 697.8 233.0 L 697.8 251.0 L 830.4 251.0 L 830.4 233.0 L 843.7 233.0 L 843.7 251.0 L 1042.6 251.0 L 1042.6 233.0 L 1055.9 233.0 L 1055.9 251.0 L 1122.2 251.0 L 1122.2 233.0 L 1135.5 233.0 L 1135.5 251.0 L 1228.3 251.0 L 1228.3 233.0 L 1241.6 233.0 L 1241.6 251.0 L 1374.2 251.0 L 1374.2 233.0 L 1387.5 233.0 L 1387.5 251.0 L 1540.0 251.0" fill="none" stroke="#81c784" stroke-width="2"/>
+<text x="25" y="290" class="label">S01_LSU AWREADY</text>
+<text x="25" y="304" class="sublabel">Upstream Master AWREADY</text>
+<line x1="280" y1="307" x2="1540" y2="307" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 293.0 L 1540.0 293.0" fill="none" stroke="#81c784" stroke-width="2"/>
+<text x="25" y="332" class="label">S01_LSU WDATA</text>
+<text x="25" y="346" class="sublabel">Upstream Master Write Data</text>
+<line x1="280" y1="349" x2="1540" y2="349" stroke="#1c2530" stroke-width="1"/>
+<polygon points="280.0,326.0 286.0,317.0 346.9,317.0 352.9,326.0 346.9,335.0 286.0,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="316.5" y="330.0" class="bus-text">0x01</text>
+<polygon points="352.9,326.0 358.9,317.0 837.7,317.0 843.7,326.0 837.7,335.0 358.9,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="598.3" y="330.0" class="bus-text">0x00</text>
+<polygon points="843.7,326.0 849.7,317.0 890.7,317.0 896.7,326.0 890.7,335.0 849.7,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="870.2" y="330.0" class="bus-text">0x01</text>
+<polygon points="896.7,326.0 902.7,317.0 1288.6,317.0 1294.6,326.0 1288.6,335.0 902.7,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="1095.7" y="330.0" class="bus-text">0x00</text>
+<polygon points="1294.6,326.0 1300.6,317.0 1421.3,317.0 1427.3,326.0 1421.3,335.0 1300.6,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="1360.9" y="330.0" class="bus-text">0x01</text>
+<polygon points="1427.3,326.0 1433.3,317.0 1534.0,317.0 1540.0,326.0 1534.0,335.0 1433.3,335.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="1483.6" y="330.0" class="bus-text">0x00</text>
+<text x="25" y="374" class="label">S01_LSU WVALID</text>
+<text x="25" y="388" class="sublabel">Upstream Master WVALID</text>
+<line x1="280" y1="391" x2="1540" y2="391" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 377.0 L 1540.0 377.0" fill="none" stroke="#64b5f6" stroke-width="2"/>
+<text x="25" y="416" class="label">S01_LSU WREADY</text>
+<text x="25" y="430" class="sublabel">Upstream Master WREADY</text>
+<line x1="280" y1="433" x2="1540" y2="433" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 419.0 L 1540.0 419.0" fill="none" stroke="#64b5f6" stroke-width="2"/>
+<text x="25" y="458" class="label">S01_LSU BVALID</text>
+<text x="25" y="472" class="sublabel">Upstream Master BVALID (OKAY Response)</text>
+<line x1="280" y1="475" x2="1540" y2="475" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 443.0 L 1540.0 443.0" fill="none" stroke="#ba68c8" stroke-width="2"/>
+<text x="25" y="500" class="label">M02_UART AW Handshake Marker</text>
+<text x="25" y="514" class="sublabel">Testbench Marker: M02 AW Handshake</text>
+<line x1="280" y1="517" x2="1540" y2="517" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 503.0 L 1540.0 503.0" fill="none" stroke="#ffeb3b" stroke-width="2"/>
+<text x="25" y="542" class="label">M02_UART AWADDR</text>
+<text x="25" y="556" class="sublabel">Downstream Slave Write Address</text>
+<line x1="280" y1="559" x2="1540" y2="559" stroke="#1c2530" stroke-width="1"/>
+<polygon points="280.0,536.0 286.0,527.0 360.2,527.0 366.2,536.0 360.2,545.0 286.0,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="323.1" y="540.0" class="bus-text">0x00000000</text>
+<polygon points="366.2,536.0 372.2,527.0 373.5,527.0 379.5,536.0 373.5,545.0 372.2,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="379.5,536.0 385.5,527.0 904.0,527.0 910.0,536.0 904.0,545.0 385.5,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="644.7" y="540.0" class="bus-text">0x00000000</text>
+<polygon points="910.0,536.0 916.0,527.0 917.3,527.0 923.3,536.0 917.3,545.0 916.0,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="923.3,536.0 929.3,527.0 1434.5,527.0 1440.5,536.0 1434.5,545.0 929.3,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="1181.9" y="540.0" class="bus-text">0x00000000</text>
+<polygon points="1440.5,536.0 1446.5,527.0 1447.8,527.0 1453.8,536.0 1447.8,545.0 1446.5,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<polygon points="1453.8,536.0 1459.8,527.0 1534.0,527.0 1540.0,536.0 1534.0,545.0 1459.8,545.0" fill="#1e293b" stroke="#4caf50" stroke-width="1.5"/>
+<text x="1496.9" y="540.0" class="bus-text">0x00000000</text>
+<text x="25" y="584" class="label">M02_UART AWVALID</text>
+<text x="25" y="598" class="sublabel">Downstream Slave AWVALID</text>
+<line x1="280" y1="601" x2="1540" y2="601" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 587.0 L 1540.0 587.0" fill="none" stroke="#81c784" stroke-width="2"/>
+<text x="25" y="626" class="label">M02_UART AWREADY</text>
+<text x="25" y="640" class="sublabel">Downstream Slave AWREADY</text>
+<line x1="280" y1="643" x2="1540" y2="643" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 629.0 L 1540.0 629.0" fill="none" stroke="#81c784" stroke-width="2"/>
+<text x="25" y="668" class="label">M02_UART WDATA</text>
+<text x="25" y="682" class="sublabel">Downstream Slave Write Data</text>
+<line x1="280" y1="685" x2="1540" y2="685" stroke="#1c2530" stroke-width="1"/>
+<polygon points="280.0,662.0 286.0,653.0 346.9,653.0 352.9,662.0 346.9,671.0 286.0,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="316.5" y="666.0" class="bus-text">0x00</text>
+<polygon points="352.9,662.0 358.9,653.0 373.5,653.0 379.5,662.0 373.5,671.0 358.9,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<polygon points="379.5,662.0 385.5,653.0 890.7,653.0 896.7,662.0 890.7,671.0 385.5,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="638.1" y="666.0" class="bus-text">0x00</text>
+<polygon points="896.7,662.0 902.7,653.0 917.3,653.0 923.3,662.0 917.3,671.0 902.7,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<polygon points="923.3,662.0 929.3,653.0 1421.3,653.0 1427.3,662.0 1421.3,671.0 929.3,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="1175.3" y="666.0" class="bus-text">0x00</text>
+<polygon points="1427.3,662.0 1433.3,653.0 1447.8,653.0 1453.8,662.0 1447.8,671.0 1433.3,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<polygon points="1453.8,662.0 1459.8,653.0 1534.0,653.0 1540.0,662.0 1534.0,671.0 1459.8,671.0" fill="#1e293b" stroke="#2196f3" stroke-width="1.5"/>
+<text x="1496.9" y="666.0" class="bus-text">0x00</text>
+<text x="25" y="710" class="label">M02_UART WVALID</text>
+<text x="25" y="724" class="sublabel">Downstream Slave WVALID</text>
+<line x1="280" y1="727" x2="1540" y2="727" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 713.0 L 1540.0 713.0" fill="none" stroke="#64b5f6" stroke-width="2"/>
+<text x="25" y="752" class="label">M02_UART WREADY</text>
+<text x="25" y="766" class="sublabel">Downstream Slave WREADY</text>
+<line x1="280" y1="769" x2="1540" y2="769" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 755.0 L 1540.0 755.0" fill="none" stroke="#64b5f6" stroke-width="2"/>
+<text x="25" y="794" class="label">M02_UART BVALID</text>
+<text x="25" y="808" class="sublabel">Downstream Slave BVALID</text>
+<line x1="280" y1="811" x2="1540" y2="811" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 797.0 L 366.2 797.0 L 366.2 779.0 L 379.5 779.0 L 379.5 797.0 L 910.0 797.0 L 910.0 779.0 L 923.3 779.0 L 923.3 797.0 L 1440.5 797.0 L 1440.5 779.0 L 1453.8 779.0 L 1453.8 797.0 L 1540.0 797.0" fill="none" stroke="#ba68c8" stroke-width="2"/>
+<text x="25" y="836" class="label">DUT uart_tx</text>
+<text x="25" y="850" class="sublabel">Physical DUT Serial Pin Transmit</text>
+<line x1="280" y1="853" x2="1540" y2="853" stroke="#1c2530" stroke-width="1"/>
+<path d="M 280.0 821.0 L 1540.0 821.0" fill="none" stroke="#ff9800" stroke-width="2"/>
+</svg>

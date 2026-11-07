@@ -1,0 +1,7 @@
+# =============================================================================
+# reset_signals.csv — Reset Interface Signal Definition
+# Verified against SoC RTL: soc_core_top.sv, soc_top.v
+# =============================================================================
+# signal_name,direction,width,description
+clk,input,1,System Clock (50 MHz)
+rst_n,input,1,Active-low system reset line (driven into DUT)

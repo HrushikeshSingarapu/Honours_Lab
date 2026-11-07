@@ -1,0 +1,68 @@
+[*]
+[*] GTKWave Analyzer Save File
+[*]
+[dumpfile] "soc_uvm.vcd"
+[savefile] "soc_axi_connect.gtkw"
+[timestart] 3800000000
+[size] 1920 1080
+[pos] -1 -1
+*-*begin-group "1. System Clock & Reset"
+tb_soc_top.clk
+tb_soc_top.reset_vif.rst_n
+*-*end-group
+*-*begin-group "2. Testbench Debug Instrumentation Markers"
+tb_soc_top.tb_uvm_vif_registered_s01
+tb_soc_top.tb_uvm_vif_registered_m02
+tb_soc_top.axi_s01_vif.tb_marker_aw_handshake
+tb_soc_top.axi_s01_vif.tb_marker_w_handshake
+tb_soc_top.axi_s01_vif.tb_marker_b_handshake
+tb_soc_top.axi_m02_vif.tb_marker_aw_handshake
+tb_soc_top.axi_m02_vif.tb_marker_w_handshake
+tb_soc_top.axi_m02_vif.tb_marker_b_handshake
+*-*end-group
+*-*begin-group "3. Upstream Master AXI (S01 - VeeR LSU)"
+[color] 2
+tb_soc_top.axi_s01_vif.awaddr[31:0]
+tb_soc_top.axi_s01_vif.awvalid
+tb_soc_top.axi_s01_vif.awready
+[color] 3
+tb_soc_top.axi_s01_vif.wdata[31:0]
+tb_soc_top.axi_s01_vif.wstrb[3:0]
+tb_soc_top.axi_s01_vif.wvalid
+tb_soc_top.axi_s01_vif.wready
+tb_soc_top.axi_s01_vif.bresp[1:0]
+tb_soc_top.axi_s01_vif.bvalid
+tb_soc_top.axi_s01_vif.bready
+tb_soc_top.axi_s01_vif.araddr[31:0]
+tb_soc_top.axi_s01_vif.arvalid
+tb_soc_top.axi_s01_vif.arready
+tb_soc_top.axi_s01_vif.rdata[31:0]
+tb_soc_top.axi_s01_vif.rvalid
+tb_soc_top.axi_s01_vif.rready
+*-*end-group
+*-*begin-group "4. Downstream Slave AXI (M02 - UART Controller)"
+[color] 2
+tb_soc_top.axi_m02_vif.awaddr[31:0]
+tb_soc_top.axi_m02_vif.awvalid
+tb_soc_top.axi_m02_vif.awready
+[color] 3
+tb_soc_top.axi_m02_vif.wdata[31:0]
+tb_soc_top.axi_m02_vif.wstrb[3:0]
+tb_soc_top.axi_m02_vif.wvalid
+tb_soc_top.axi_m02_vif.wready
+tb_soc_top.axi_m02_vif.bresp[1:0]
+tb_soc_top.axi_m02_vif.bvalid
+tb_soc_top.axi_m02_vif.bready
+tb_soc_top.axi_m02_vif.araddr[31:0]
+tb_soc_top.axi_m02_vif.arvalid
+tb_soc_top.axi_m02_vif.arready
+tb_soc_top.axi_m02_vif.rdata[31:0]
+tb_soc_top.axi_m02_vif.rvalid
+tb_soc_top.axi_m02_vif.rready
+*-*end-group
+*-*begin-group "5. DUT Physical Output"
+[color] 1
+tb_soc_top.uart_vif.uart_tx
+*-*end-group
+[pattern_trace] 1
+[pattern_trace] 0
