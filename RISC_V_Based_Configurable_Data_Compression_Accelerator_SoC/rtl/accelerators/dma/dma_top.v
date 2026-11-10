@@ -30,7 +30,7 @@ module dma_top #(
     input  wire                    rst_n,      // System active-low reset
 
     // =========================================================================
-    // CPU-Facing AXI4-Lite Slave Interface (Base: 0x1001_1000)
+    // CPU-Facing AXI4-Lite Slave Interface (Base: 0x000B_0000)
     // =========================================================================
     input  wire [ID_WIDTH-1:0]     s_axi_awid,
     input  wire [ADDR_WIDTH-1:0]   s_axi_awaddr,

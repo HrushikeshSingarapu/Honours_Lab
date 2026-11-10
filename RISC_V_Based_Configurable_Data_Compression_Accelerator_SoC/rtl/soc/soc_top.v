@@ -4,14 +4,15 @@
 // Hierarchy:
 //   soc_top
 //   ├── axi64_to_32_bridge [3x]  (IFU / LSU / SB VeeR interface adapters)
-//   ├── axi_interconnect_wrap_3x8  (3-master, 8-slave AXI crossbar)
-//   ├── imem_sram              (Instruction Memory  0x0000_0000 – 0x0003_FFFF)
-//   ├── dmem_sram              (Data Memory         0x0004_0000 – 0x0007_FFFF)
-//   ├── axi_uart_top           (UART                0x1000_0000 – 0x1000_0FFF)
-//   ├── timer_top              (Timer               0x1000_1000 – 0x1000_1FFF)
-//   ├── gpio_top               (GPIO                0x1000_2000 – 0x1000_2FFF)
-//   ├── rle_top                (RLE Accelerator     0x1001_0000 – 0x1001_0FFF)
-//   └── crc32_top              (CRC-32 Engine       0x1001_2000 – 0x1001_2FFF)
+//   ├── axi_interconnect_wrap_4x8  (4-master, 8-slave AXI crossbar)
+//   ├── imem_sram              (Instruction Memory  0x0000_0000 – 0x0000_FFFF, aliased @ 0x8000_0000)
+//   ├── dmem_sram              (Data Memory         0x0001_0000 – 0x0002_FFFF)
+//   ├── axi_uart_top           (UART                0x0003_0000 – 0x0003_0FFF)
+//   ├── timer_top              (Timer               0x0005_0000 – 0x0005_0FFF)
+//   ├── gpio_top               (GPIO                0x0006_0000 – 0x0006_0FFF)
+//   ├── crc32_top              (CRC-32 Engine       0x000A_0000 – 0x000A_0FFF)
+//   ├── dma_top                (DMA Controller      0x000B_0000 – 0x000B_FFFF)
+//   └── rle_top                (RLE Accelerator     0x000D_0000 – 0x000D_0FFF)
 //
 // VeeR EL2 Integration Note:
 //   VeeR exports AXI4 at 64-bit data width. Each of its three master ports
@@ -21,15 +22,15 @@
 //   Until VeeR is compiled, the testbench drives these ports as 32-bit masters
 //   (upper half of wdata tied to 0, bridge transparent).
 //
-// Address Map (from axi_interconnect_wrap_3x8 instantiation):
-//   Slave 0  (imem):  BASE=0x0000_0000 & 0x8000_0000 (VeeR reset alias)  SIZE=256 kB  (width=18)
-//   Slave 1  (dmem):  BASE=0x0004_0000                                    SIZE=256 kB  (width=18)
-//   Slave 2  (uart):  BASE=0x1000_0000                                    SIZE=4   kB  (width=12)
-//   Slave 3  (timer): BASE=0x1000_1000                                    SIZE=4   kB  (width=12)
-//   Slave 4  (gpio):  BASE=0x1000_2000                                    SIZE=4   kB  (width=12)
-//   Slave 5  (rle):   BASE=0x1001_0000                                    SIZE=4   kB  (width=12)
-//   Slave 6  (dma):   BASE=0x1001_1000                                    SIZE=4   kB  (width=12) — stub (TIE)
-//   Slave 7  (crc):   BASE=0x1001_2000                                    SIZE=4   kB  (width=12)
+// Address Map (from axi_interconnect_wrap_4x8 instantiation):
+//   Slave 0  (imem):  BASE=0x0000_0000 & 0x8000_0000 (VeeR reset alias)  SIZE=64  kB  (width=16)
+//   Slave 1  (dmem):  BASE=0x0001_0000 (2x 64 kB: 0x0001_0000 & 0x0002_0000)  SIZE=128 kB  (width=16+16)
+//   Slave 2  (uart):  BASE=0x0003_0000                                    SIZE=4   kB  (width=12)
+//   Slave 3  (timer): BASE=0x0005_0000                                    SIZE=4   kB  (width=12)
+//   Slave 4  (gpio):  BASE=0x0006_0000                                    SIZE=4   kB  (width=12)
+//   Slave 5  (rle):   BASE=0x000D_0000                                    SIZE=4   kB  (width=12)
+//   Slave 6  (dma):   BASE=0x000B_0000                                    SIZE=64  kB  (width=16)
+//   Slave 7  (crc):   BASE=0x000A_0000                                    SIZE=4   kB  (width=12)
 //
 // Reset convention:
 //   rst_n  — active-low; used by timer_top, gpio_top, crc32_top
@@ -41,8 +42,8 @@
 `default_nettype none
 
 module soc_top #(
-    parameter IMEM_DEPTH = 65536,   // 256 kB / 4 B per word
-    parameter DMEM_DEPTH = 65536    // 256 kB / 4 B per word
+    parameter IMEM_DEPTH = 16384,   // 64  kB / 4 B per word
+    parameter DMEM_DEPTH = 32768    // 128 kB / 4 B per word
 )(
     input  wire        clk,
     input  wire        rst_n,       // Active-low system reset
@@ -682,43 +683,43 @@ module soc_top #(
         .ARUSER_ENABLE     (1),
         .RUSER_ENABLE      (1),
         .M_REGIONS         (2),
-        // Slave 0: IMEM  0x0000_0000 & 0x8000_0000 (VeeR reset vector) /18 (256 kB)
+        // Slave 0: IMEM  0x0000_0000 & 0x8000_0000 (VeeR reset vector alias) /16 (64 kB)
         .M00_BASE_ADDR     ({32'h8000_0000, 32'h0000_0000}),
-        .M00_ADDR_WIDTH    ({32'd18,        32'd18}),
+        .M00_ADDR_WIDTH    ({32'd16,        32'd16}),
         .M00_CONNECT_READ  (4'b1111),
         .M00_CONNECT_WRITE (4'b1111),
-        // Slave 1: DMEM  0x0004_0000  /18  (256 kB)
-        .M01_BASE_ADDR     ({32'h0000_0000, 32'h0004_0000}),
-        .M01_ADDR_WIDTH    ({32'd0,         32'd18}),
+        // Slave 1: DMEM  0x0001_0000 – 0x0002_FFFF (128 kB as two aligned 64 kB regions)
+        .M01_BASE_ADDR     ({32'h0002_0000, 32'h0001_0000}),
+        .M01_ADDR_WIDTH    ({32'd16,        32'd16}),
         .M01_CONNECT_READ  (4'b1111),
         .M01_CONNECT_WRITE (4'b1111),
-        // Slave 2: UART  0x1000_0000  /12  (4 kB)
-        .M02_BASE_ADDR     ({32'h0000_0000, 32'h1000_0000}),
+        // Slave 2: UART  0x0003_0000  /12  (4 kB)
+        .M02_BASE_ADDR     ({32'h0000_0000, 32'h0003_0000}),
         .M02_ADDR_WIDTH    ({32'd0,         32'd12}),
         .M02_CONNECT_READ  (4'b1111),
         .M02_CONNECT_WRITE (4'b1111),
-        // Slave 3: Timer 0x1000_1000  /12  (4 kB)
-        .M03_BASE_ADDR     ({32'h0000_0000, 32'h1000_1000}),
+        // Slave 3: Timer 0x0005_0000  /12  (4 kB)
+        .M03_BASE_ADDR     ({32'h0000_0000, 32'h0005_0000}),
         .M03_ADDR_WIDTH    ({32'd0,         32'd12}),
         .M03_CONNECT_READ  (4'b1111),
         .M03_CONNECT_WRITE (4'b1111),
-        // Slave 4: GPIO  0x1000_2000  /12  (4 kB)
-        .M04_BASE_ADDR     ({32'h0000_0000, 32'h1000_2000}),
+        // Slave 4: GPIO  0x0006_0000  /12  (4 kB)
+        .M04_BASE_ADDR     ({32'h0000_0000, 32'h0006_0000}),
         .M04_ADDR_WIDTH    ({32'd0,         32'd12}),
         .M04_CONNECT_READ  (4'b1111),
         .M04_CONNECT_WRITE (4'b1111),
-        // Slave 5: RLE   0x1001_0000  /12  (4 kB)
-        .M05_BASE_ADDR     ({32'h0000_0000, 32'h1001_0000}),
+        // Slave 5: RLE   0x000D_0000  /12  (4 kB)
+        .M05_BASE_ADDR     ({32'h0000_0000, 32'h000D_0000}),
         .M05_ADDR_WIDTH    ({32'd0,         32'd12}),
         .M05_CONNECT_READ  (4'b1111),
         .M05_CONNECT_WRITE (4'b1111),
-        // Slave 6: DMA   0x1001_1000  /12  (4 kB)
-        .M06_BASE_ADDR     ({32'h0000_0000, 32'h1001_1000}),
-        .M06_ADDR_WIDTH    ({32'd0,         32'd12}),
+        // Slave 6: DMA   0x000B_0000  /16  (64 kB)
+        .M06_BASE_ADDR     ({32'h0000_0000, 32'h000B_0000}),
+        .M06_ADDR_WIDTH    ({32'd0,         32'd16}),
         .M06_CONNECT_READ  (4'b1111),
         .M06_CONNECT_WRITE (4'b1111),
-        // Slave 7: CRC   0x1001_2000  /12  (4 kB)
-        .M07_BASE_ADDR     ({32'h0000_0000, 32'h1001_2000}),
+        // Slave 7: CRC   0x000A_0000  /12  (4 kB)
+        .M07_BASE_ADDR     ({32'h0000_0000, 32'h000A_0000}),
         .M07_ADDR_WIDTH    ({32'd0,         32'd12}),
         .M07_CONNECT_READ  (4'b1111),
         .M07_CONNECT_WRITE (4'b1111)
@@ -988,9 +989,12 @@ module soc_top #(
     );
 
     // =========================================================================
-    // Instruction Memory (IMEM) — Simple AXI4-Lite SRAM
+    // Instruction Memory (IMEM) — Simple AXI4-Lite SRAM (0x0000_0000 & 0x8000_0000)
     // =========================================================================
-    soc_sram #(.DEPTH(IMEM_DEPTH)) u_imem (
+    soc_sram #(
+        .DEPTH     (IMEM_DEPTH),
+        .BASE_ADDR (32'h0000_0000)
+    ) u_imem (
         .clk      (clk),     .rst_n    (rst_n),
         .awvalid  (m00_awvalid), .awready (m00_awready),
         .awaddr   (m00_awaddr),  .awlen   (m00_awlen),
@@ -1006,9 +1010,12 @@ module soc_top #(
     );
 
     // =========================================================================
-    // Data Memory (DMEM)
+    // Data Memory (DMEM) — 0x0001_0000 – 0x0002_FFFF (128 KB)
     // =========================================================================
-    soc_sram #(.DEPTH(DMEM_DEPTH)) u_dmem (
+    soc_sram #(
+        .DEPTH     (DMEM_DEPTH),
+        .BASE_ADDR (32'h0001_0000)
+    ) u_dmem (
         .clk      (clk),     .rst_n    (rst_n),
         .awvalid  (m01_awvalid), .awready (m01_awready),
         .awaddr   (m01_awaddr),  .awlen   (m01_awlen),
@@ -1248,7 +1255,8 @@ endmodule
 // Supports single-beat and burst (INCR) transactions with byte strobes.
 // =============================================================================
 module soc_sram #(
-    parameter DEPTH = 65536   // Number of 32-bit words
+    parameter DEPTH            = 16384,        // Number of 32-bit words
+    parameter [31:0] BASE_ADDR = 32'h0000_0000 // Base address subtracted before indexing
 )(
     input  wire        clk,
     input  wire        rst_n,
@@ -1300,10 +1308,16 @@ module soc_sram #(
     reg        rd_addr_accepted;
     reg [7:0]  rd_id_reg;
 
-    wire [ADDR_BITS-1:0] wr_idx       = wr_addr[ADDR_BITS+1 : 2];
-    wire [ADDR_BITS-1:0] rd_idx       = rd_addr[ADDR_BITS+1 : 2];
+    wire [31:0]          aw_off       = awaddr - BASE_ADDR;
+    wire [31:0]          wr_off       = wr_addr - BASE_ADDR;
+    wire [31:0]          rd_off       = rd_addr - BASE_ADDR;
     wire [31:0]          next_rd_addr = rd_addr + 32'd4;
-    wire [ADDR_BITS-1:0] next_rd_idx  = next_rd_addr[ADDR_BITS+1 : 2];
+    wire [31:0]          next_rd_off  = next_rd_addr - BASE_ADDR;
+
+    wire [ADDR_BITS-1:0] aw_idx       = aw_off[ADDR_BITS+1 : 2];
+    wire [ADDR_BITS-1:0] wr_idx       = wr_off[ADDR_BITS+1 : 2];
+    wire [ADDR_BITS-1:0] rd_idx       = rd_off[ADDR_BITS+1 : 2];
+    wire [ADDR_BITS-1:0] next_rd_idx  = next_rd_off[ADDR_BITS+1 : 2];
 
     assign bresp = 2'b00;   // OKAY
     assign bid   = wr_id_reg;
@@ -1331,10 +1345,10 @@ module soc_sram #(
             // Write address & data handling
             if (awvalid && awready && wvalid && wready) begin
                 // Simultaneous AW and W handshake
-                if (wstrb[0]) mem[awaddr[ADDR_BITS+1:2]][7:0]   <= wdata[7:0];
-                if (wstrb[1]) mem[awaddr[ADDR_BITS+1:2]][15:8]  <= wdata[15:8];
-                if (wstrb[2]) mem[awaddr[ADDR_BITS+1:2]][23:16] <= wdata[23:16];
-                if (wstrb[3]) mem[awaddr[ADDR_BITS+1:2]][31:24] <= wdata[31:24];
+                if (wstrb[0]) mem[aw_idx][7:0]   <= wdata[7:0];
+                if (wstrb[1]) mem[aw_idx][15:8]  <= wdata[15:8];
+                if (wstrb[2]) mem[aw_idx][23:16] <= wdata[23:16];
+                if (wstrb[3]) mem[aw_idx][31:24] <= wdata[31:24];
 
                 if (awlen == 8'd0 || wlast) begin
                     wr_addr_accepted <= 1'b0;

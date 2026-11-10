@@ -14,11 +14,11 @@
 //   4. Boundary-Length Pattern (32 bytes): Four 8-byte runs -> 8 bytes
 //
 // Memory Layout:
-//   DMEM Base       : 0x0004_0000
-//   Status Area     : DMEM[0..15] (0x0004_0000 - 0x0004_003C)
-//   SRC_BUF         : 0x0004_0100 (256 bytes)
-//   COMP_BUF        : 0x0004_0300 (256 bytes)
-//   DECOMP_BUF      : 0x0004_0500 (256 bytes)
+//   DMEM Base       : 0x0001_0000
+//   Status Area     : DMEM[0..15] (0x0001_0000 - 0x0001_003C)
+//   SRC_BUF         : 0x0001_0100 (256 bytes)
+//   COMP_BUF        : 0x0001_0300 (256 bytes)
+//   DECOMP_BUF      : 0x0001_0500 (256 bytes)
 //
 // Completion Status:
 //   DMEM[0] = 0xCAFE_D00D  (All 4 patterns passed with CRC match)
@@ -29,18 +29,18 @@
 #include <stdint.h>
 
 // Peripheral Base Addresses
-#define UART_BASE       0x10000000UL
-#define RLE_BASE        0x10010000UL
-#define DMA_BASE        0x10011000UL
-#define CRC_BASE        0x10012000UL
+#define UART_BASE       0x00030000UL
+#define RLE_BASE        0x000D0000UL
+#define DMA_BASE        0x000B0000UL
+#define CRC_BASE        0x000A0000UL
 
 // DMEM Buffer Addresses
-#define DMEM_BASE       0x00040000UL
+#define DMEM_BASE       0x00010000UL
 #define DMEM_WORD(idx)  (*(volatile uint32_t *)(DMEM_BASE + ((idx) * 4)))
 
-#define SRC_BUF_ADDR    0x00040100UL
-#define COMP_BUF_ADDR   0x00040300UL
-#define DECOMP_BUF_ADDR 0x00040500UL
+#define SRC_BUF_ADDR    0x00010100UL
+#define COMP_BUF_ADDR   0x00010300UL
+#define DECOMP_BUF_ADDR 0x00010500UL
 
 // UART 16550 Registers
 #define UART_THR        (*(volatile uint32_t *)(UART_BASE + 0x00))
@@ -144,7 +144,7 @@ static uint32_t compute_hw_crc32(const uint8_t *data, uint32_t len)
         i += 4;
     }
 
-    // Feed remaining trailing bytes (1..3) with byte stores to 0x10012000
+    // Feed remaining trailing bytes (1..3) with byte stores to 0x000A0000
     while (i < len) {
         *(volatile uint8_t *)(CRC_BASE + 0x00) = data[i];
         i++;
@@ -329,4 +329,3 @@ int main(void)
 
     return 0;
 }
-

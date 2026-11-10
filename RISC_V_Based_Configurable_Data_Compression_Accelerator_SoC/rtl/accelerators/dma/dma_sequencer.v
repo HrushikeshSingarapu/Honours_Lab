@@ -7,13 +7,13 @@
 //   1. Accepts start/abort and configuration from dma_reg_file.
 //   2. Validates parameters (source, destination, length 1..256 bytes).
 //   3. Reads source data from Data Memory (DMEM) via dma_master_engine.
-//   4. Configures RLE accelerator input length (0x1001_0008).
-//   5. Transfers source bytes into RLE input data register (0x1001_0010)
+//   4. Configures RLE accelerator input length (0x000D_0008).
+//   5. Transfers source bytes into RLE input data register (0x000D_0010)
 //      with precise byte enables (WSTRB) for partial final words.
-//   6. Initiates RLE operation (0x1001_0000) for compression or decompression.
-//   7. Polls RLE status (0x1001_0004) until DONE or ERROR (with timeout guard).
-//   8. Reads RLE output byte length (0x1001_000C).
-//   9. Reads RLE output bytes from output data register (0x1001_0014).
+//   6. Initiates RLE operation (0x000D_0000) for compression or decompression.
+//   7. Polls RLE status (0x000D_0004) until DONE or ERROR (with timeout guard).
+//   8. Reads RLE output byte length (0x000D_000C).
+//   9. Reads RLE output bytes from output data register (0x000D_0014).
 //  10. Packs output bytes sequentially into 32-bit words with correct WSTRB.
 //  11. Writes packed words to destination DMEM via dma_master_engine.
 //  12. Updates DMA output length, status, error code, and triggers completion IRQ.
@@ -84,12 +84,12 @@ module dma_sequencer #(
     // =========================================================================
     // RLE Accelerator Peripheral Memory Map (Slave 5 on SoC Interconnect)
     // =========================================================================
-    localparam [31:0] RLE_REG_CONTROL    = 32'h1001_0000;
-    localparam [31:0] RLE_REG_STATUS     = 32'h1001_0004;
-    localparam [31:0] RLE_REG_INPUT_LEN  = 32'h1001_0008;
-    localparam [31:0] RLE_REG_OUTPUT_LEN = 32'h1001_000C;
-    localparam [31:0] RLE_REG_INPUT_DATA = 32'h1001_0010;
-    localparam [31:0] RLE_REG_OUTPUT_DATA= 32'h1001_0014;
+    localparam [31:0] RLE_REG_CONTROL    = 32'h000D_0000;
+    localparam [31:0] RLE_REG_STATUS     = 32'h000D_0004;
+    localparam [31:0] RLE_REG_INPUT_LEN  = 32'h000D_0008;
+    localparam [31:0] RLE_REG_OUTPUT_LEN = 32'h000D_000C;
+    localparam [31:0] RLE_REG_INPUT_DATA = 32'h000D_0010;
+    localparam [31:0] RLE_REG_OUTPUT_DATA= 32'h000D_0014;
 
     // Error Codes
     localparam [7:0] ERR_NONE     = 8'h00;
@@ -239,16 +239,18 @@ module dma_sequencer #(
                         if (cfg_input_len_i == 16'd0 || cfg_input_len_i > 16'd256) begin
                             err_code_latch <= ERR_BAD_LEN;
                             state          <= S_ERROR;
-                        end else if (cfg_src_addr_i < 32'h0004_0000 || cfg_src_addr_i > 32'h0007_FFFF) begin
+                        end else if (cfg_src_addr_i < 32'h0001_0000 ||
+                                     cfg_src_addr_i > 32'h0002_FFFF ||
+                                     (({1'b0, cfg_src_addr_i} + {17'd0, cfg_input_len_i} - 33'd1) > 33'h0_0002_FFFF)) begin
                             err_code_latch <= ERR_BAD_SRC;
                             state          <= S_ERROR;
-                        end else if (cfg_dst_addr_i < 32'h0004_0000 || cfg_dst_addr_i > 32'h0007_FFFF) begin
+                        end else if (cfg_dst_addr_i < 32'h0001_0000 || cfg_dst_addr_i > 32'h0002_FFFF) begin
                             err_code_latch <= ERR_BAD_DST;
                             state          <= S_ERROR;
                         end else begin
-                            // Calculate number of 32-bit words needed to hold in_len bytes
-                            // word_cnt = ceil(in_len / 4)
-                            src_word_cnt <= (cfg_input_len_i[7:0] + 8'd3) >> 2;
+                            // Calculate number of 32-bit words needed to hold in_len bytes (1..256 -> 1..64 words)
+                            // word_cnt = ceil(in_len / 4) using full 9-bit value so len=256 does not truncate to 0
+                            src_word_cnt <= (cfg_input_len_i[8:0] + 9'd3) >> 2;
                             src_word_idx <= 8'd0;
                             state        <= S_RD_DMEM_START;
                         end
@@ -424,6 +426,10 @@ module dma_sequencer #(
                             // 0 output bytes produced
                             dst_word_cnt <= 8'd0;
                             state        <= S_DONE;
+                        end else if (rd_data_i[15:0] > 16'd256) begin
+                            // Guard internal 256-byte buffer against overflow
+                            err_code_latch <= ERR_RLE_ERR;
+                            state          <= S_ERROR;
                         end else begin
                             dst_byte_idx <= 16'd0;
                             state        <= S_RD_RLE_DATA_START;
@@ -448,10 +454,16 @@ module dma_sequencer #(
                     end else if (rd_done_i) begin
                         dst_byte_buf[dst_byte_idx] <= rd_data_i[7:0];
                         if (dst_byte_idx + 16'd1 == rle_out_len_reg) begin
-                            // All output bytes collected; calculate destination words
-                            dst_word_cnt <= (rle_out_len_reg[7:0] + 8'd3) >> 2;
-                            dst_word_idx <= 8'd0;
-                            state        <= S_WR_DMEM_START;
+                            // Verify destination range fits entirely inside DMEM (0x0001_0000..0x0002_FFFF)
+                            if (({1'b0, dst_addr_reg} + {17'd0, rle_out_len_reg} - 33'd1) > 33'h0_0002_FFFF) begin
+                                err_code_latch <= ERR_BAD_DST;
+                                state          <= S_ERROR;
+                            end else begin
+                                // All output bytes collected; calculate destination words (1..256 -> 1..64 words)
+                                dst_word_cnt <= (rle_out_len_reg[8:0] + 9'd3) >> 2;
+                                dst_word_idx <= 8'd0;
+                                state        <= S_WR_DMEM_START;
+                            end
                         end else begin
                             dst_byte_idx <= dst_byte_idx + 16'd1;
                             state        <= S_RD_RLE_DATA_START;

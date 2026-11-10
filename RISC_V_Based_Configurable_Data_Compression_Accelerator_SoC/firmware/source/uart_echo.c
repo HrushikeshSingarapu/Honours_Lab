@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#define UART_BASE            0x10000000UL
+#define UART_BASE            0x00030000UL
 
 // UART 16550 Registers (32-bit word aligned)
 #define UART_RBR             (*(volatile uint32_t *)(UART_BASE + 0x00))

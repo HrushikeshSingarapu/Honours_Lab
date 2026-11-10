@@ -5,7 +5,7 @@
 //   Provides the memory-mapped register bank for configuring and monitoring
 //   the Direct Memory Access (DMA) controller.
 //
-// Register Map (Base: 0x1001_1000, 4 KB Aperture):
+// Register Map (Base: 0x000B_0000, 64 KB Aperture; Registers at +0x000..+0xFFF):
 //   Offset   Register           Width  Access  Description
 //   0x000    DMA_CONTROL        32     R/W     Bit 0: START (self-clearing pulse)
 //                                              Bit 1: MODE (0=Compress, 1=Decompress)
@@ -13,8 +13,8 @@
 //   0x004    DMA_STATUS         32     RO      Bit 0: BUSY
 //                                              Bit 1: DONE
 //                                              Bit 2: ERROR
-//   0x008    DMA_SRC_ADDR       32     R/W     Source address in DMEM (0x0004_0000 - 0x0007_FFFF)
-//   0x00C    DMA_DST_ADDR       32     R/W     Destination address in DMEM (0x0004_0000 - 0x0007_FFFF)
+//   0x008    DMA_SRC_ADDR       32     R/W     Source address in DMEM (0x0001_0000 - 0x0002_FFFF)
+//   0x00C    DMA_DST_ADDR       32     R/W     Destination address in DMEM (0x0001_0000 - 0x0002_FFFF)
 //   0x010    DMA_INPUT_LEN      32     R/W     Input transfer length in bytes (1 - 256)
 //   0x014    DMA_OUTPUT_LEN     32     RO      Actual output bytes produced by accelerator
 //   0x018    DMA_IRQ_ENABLE     32     R/W     Bit 0: DONE_IE, Bit 1: ERROR_IE
@@ -182,8 +182,8 @@ module dma_reg_file #(
             reg_mode           <= 1'b0;
             reg_done           <= 1'b0;
             reg_error          <= 1'b0;
-            reg_src_addr       <= 32'h0004_0000;
-            reg_dst_addr       <= 32'h0004_0100;
+            reg_src_addr       <= 32'h0001_0000;
+            reg_dst_addr       <= 32'h0001_0100;
             reg_input_len      <= 16'd0;
             reg_output_len     <= 16'd0;
             reg_irq_enable     <= 2'b00;

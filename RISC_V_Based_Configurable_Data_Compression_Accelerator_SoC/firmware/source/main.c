@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#define UART_BASE   0x10000000UL
+#define UART_BASE   0x00030000UL
 
 #define UART_THR    (*(volatile uint32_t *)(UART_BASE + 0x00))
 #define UART_LCR    (*(volatile uint32_t *)(UART_BASE + 0x0C))

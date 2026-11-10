@@ -293,7 +293,7 @@ module axi64_to_32_bridge #(
                         m_axi_rdata  <= rd_lane_r ? {s_axi_rdata, 32'h0000_0000}
                                                   : {32'h0000_0000, s_axi_rdata};
                         m_axi_rresp  <= s_axi_rresp;
-                        m_axi_rid    <= s_axi_rid;
+                        m_axi_rid    <= rd_id_r;
                         m_axi_rlast  <= s_axi_rlast;
                         s_axi_rready <= 1'b0;
                     end

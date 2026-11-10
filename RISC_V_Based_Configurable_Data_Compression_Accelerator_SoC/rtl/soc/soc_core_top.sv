@@ -10,8 +10,8 @@
 //   └── soc_top           (32-bit AXI SoC Infrastructure)
 //       ├── axi64_to_32_bridge [3x] (IFU, LSU, SB)
 //       ├── axi_interconnect_wrap_3x8
-//       ├── IMEM (256 kB, aliased at 0x0000_0000 and 0x8000_0000)
-//       ├── DMEM (256 kB, at 0x0004_0000)
+//       ├── IMEM (64 kB, aliased at 0x0000_0000 and 0x8000_0000)
+//       ├── DMEM (128 kB, at 0x0001_0000 – 0x0002_FFFF)
 //       ├── UART, Timer, GPIO, RLE, CRC-32
 //
 // Reset & Boot Convention:
@@ -27,8 +27,8 @@ module soc_core_top
     import el2_pkg::*;
 #(
     `include "el2_param.vh",
-    parameter IMEM_DEPTH = 65536,
-    parameter DMEM_DEPTH = 65536
+    parameter IMEM_DEPTH = 16384,
+    parameter DMEM_DEPTH = 32768
 )(
     input  wire        clk,
     input  wire        rst_n,
