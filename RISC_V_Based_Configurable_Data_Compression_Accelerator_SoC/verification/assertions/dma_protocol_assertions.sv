@@ -94,8 +94,9 @@ module dma_protocol_assertions #(
     int rlast_err_count     = 0;
     int stability_err_count = 0;
     int align_err_count     = 0;
+    int resp_err_count      = 0;
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             prev_awvalid       <= 1'b0;
             prev_awready       <= 1'b0;
@@ -130,6 +131,24 @@ module dma_protocol_assertions #(
                 end
             end
         end else begin
+            assert (!$isunknown({m_axi_awvalid, m_axi_wvalid, m_axi_arvalid, irq_o})) else begin
+                $display("[%0t ns] [%s ERROR] Unknown X/Z on DMA master valid/irq outputs!", $time, NAME);
+                resp_err_count++;
+            end
+
+            if (m_axi_bvalid && m_axi_bready) begin
+                assert (!$isunknown(m_axi_bresp) && m_axi_bresp !== 2'b01) else begin
+                    $display("[%0t ns] [%s ERROR] Invalid/EXOKAY/X BRESP=0x%0h!", $time, NAME, m_axi_bresp);
+                    resp_err_count++;
+                end
+            end
+            if (m_axi_rvalid && m_axi_rready) begin
+                assert (!$isunknown(m_axi_rresp) && m_axi_rresp !== 2'b01) else begin
+                    $display("[%0t ns] [%s ERROR] Invalid/EXOKAY/X RRESP=0x%0h!", $time, NAME, m_axi_rresp);
+                    resp_err_count++;
+                end
+            end
+
             // 2. Master Write Address Checks
             if (m_axi_awvalid) begin
                 // Burst type: 2'b00 (FIXED) or 2'b01 (INCR)
@@ -309,7 +328,8 @@ module dma_protocol_assertions #(
 
     function int get_total_assertion_errors();
         return (reset_err_count + burst_err_count + wlast_err_count +
-                rlast_err_count + stability_err_count + align_err_count);
+                rlast_err_count + stability_err_count + align_err_count +
+                resp_err_count);
     endfunction
 
 endmodule: dma_protocol_assertions

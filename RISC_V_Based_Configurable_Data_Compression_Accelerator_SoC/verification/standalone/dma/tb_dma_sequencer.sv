@@ -201,7 +201,7 @@ module tb_dma_sequencer;
                     @(posedge clk);
                     rd_error <= 1'b0;
                     rd_done  <= 1'b0;
-                end else if (cur_addr >= 32'h0004_0000 && cur_addr <= 32'h0007_FFFF) begin
+                end else if (cur_addr >= 32'h0001_0000 && cur_addr <= 32'h0002_FFFF) begin
                     // Read from DMEM (burst of cur_len + 1 words)
                     for (b = 0; b <= cur_len; b++) begin
                         @(posedge clk);
@@ -214,7 +214,7 @@ module tb_dma_sequencer;
                     rd_valid <= 1'b0;
                     rd_last  <= 1'b0;
                     rd_done  <= 1'b1;
-                end else if (cur_addr == 32'h1001_0004) begin
+                end else if (cur_addr == 32'h000D_0004) begin
                     // Read RLE REG_STATUS
                     @(posedge clk);
                     rd_valid <= 1'b1;
@@ -230,7 +230,7 @@ module tb_dma_sequencer;
                     rd_valid <= 1'b0;
                     rd_last  <= 1'b0;
                     rd_done  <= 1'b1;
-                end else if (cur_addr == 32'h1001_000C) begin
+                end else if (cur_addr == 32'h000D_000C) begin
                     // Read RLE REG_OUTPUT_LEN
                     @(posedge clk);
                     rd_valid <= 1'b1;
@@ -240,7 +240,7 @@ module tb_dma_sequencer;
                     rd_valid <= 1'b0;
                     rd_last  <= 1'b0;
                     rd_done  <= 1'b1;
-                end else if (cur_addr == 32'h1001_0014) begin
+                end else if (cur_addr == 32'h000D_0014) begin
                     // Read RLE REG_OUTPUT_DATA (1 byte per read)
                     @(posedge clk);
                     rd_valid <= 1'b1;
@@ -279,21 +279,21 @@ module tb_dma_sequencer;
                     wr_done  <= 1'b1;
                 end else begin
                     // Handle write according to address
-                    if (w_addr == 32'h1001_0008) begin
+                    if (w_addr == 32'h000D_0008) begin
                         // RLE REG_INPUT_LEN
                         mock_rle_in_len = wr_data[15:0];
                         mock_rle_in_ptr = 0;
-                    end else if (w_addr == 32'h1001_0010) begin
+                    end else if (w_addr == 32'h000D_0010) begin
                         // RLE REG_INPUT_DATA
                         if (wr_strb[0]) begin mock_rle_in_buf[mock_rle_in_ptr] = wr_data[7:0];   mock_rle_in_ptr++; end
                         if (wr_strb[1]) begin mock_rle_in_buf[mock_rle_in_ptr] = wr_data[15:8];  mock_rle_in_ptr++; end
                         if (wr_strb[2]) begin mock_rle_in_buf[mock_rle_in_ptr] = wr_data[23:16]; mock_rle_in_ptr++; end
                         if (wr_strb[3]) begin mock_rle_in_buf[mock_rle_in_ptr] = wr_data[31:24]; mock_rle_in_ptr++; end
-                    end else if (w_addr == 32'h1001_0000) begin
+                    end else if (w_addr == 32'h000D_0000) begin
                         // RLE REG_CONTROL
                         mock_rle_mode = wr_data[1];
                         mock_rle_out_ptr = 0;
-                    end else if (w_addr >= 32'h0004_0000 && w_addr <= 32'h0007_FFFF) begin
+                    end else if (w_addr >= 32'h0001_0000 && w_addr <= 32'h0002_FFFF) begin
                         // Destination DMEM write
                         if (wr_strb[0]) write_dmem_byte(w_addr + 0, wr_data[7:0]);
                         if (wr_strb[1]) write_dmem_byte(w_addr + 1, wr_data[15:8]);
@@ -366,113 +366,113 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 1: Parameter Validations ---");
         // Len = 0
-        trigger_transfer(32'h0004_0000, 32'h0004_0100, 16'd0, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0001_0100, 16'd0, 1'b0);
         @(posedge clk);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h03, "Length == 0 rejected with ERR_BAD_LEN (0x03)");
 
         // Len > 256
-        trigger_transfer(32'h0004_0000, 32'h0004_0100, 16'd257, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0001_0100, 16'd257, 1'b0);
         @(posedge clk);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h03, "Length == 257 rejected with ERR_BAD_LEN (0x03)");
 
-        // Bad Source Address (< 0x0004_0000)
-        trigger_transfer(32'h0003_FFFC, 32'h0004_0100, 16'd4, 1'b0);
+        // Bad Source Address (< 0x0001_0000)
+        trigger_transfer(32'h0000_FFFC, 32'h0001_0100, 16'd4, 1'b0);
         @(posedge clk);
         while (!status_error_pulse) @(posedge clk);
-        check(status_error_code === 8'h01, "Source addr < 0x40000 rejected with ERR_BAD_SRC (0x01)");
+        check(status_error_code === 8'h01, "Source addr < 0x10000 rejected with ERR_BAD_SRC (0x01)");
 
-        // Bad Destination Address (> 0x0007_FFFF)
-        trigger_transfer(32'h0004_0000, 32'h0008_0000, 16'd4, 1'b0);
+        // Bad Destination Address (> 0x0002_FFFF)
+        trigger_transfer(32'h0001_0000, 32'h0003_0000, 16'd4, 1'b0);
         @(posedge clk);
         while (!status_error_pulse) @(posedge clk);
-        check(status_error_code === 8'h02, "Destination addr > 0x7FFFF rejected with ERR_BAD_DST (0x02)");
+        check(status_error_code === 8'h02, "Destination addr > 0x2FFFF rejected with ERR_BAD_DST (0x02)");
 
         // ---------------------------------------------------------------------
         // Test 2: Single-Byte Transfer (1 byte)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 2: Single-Byte Transfer (1 Byte) ---");
-        write_dmem_byte(32'h0004_0000, 8'hAB);
+        write_dmem_byte(32'h0001_0000, 8'hAB);
         // Pre-configure mock RLE output: 1 byte of 0xCD
         mock_rle_out_len = 16'd1;
         mock_rle_out_buf[0] = 8'hCD;
 
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd1, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd1, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd1, "1-byte transfer reports output len = 1");
         check(mock_rle_in_buf[0] === 8'hAB, "RLE received single byte 0xAB with WSTRB=4'b0001");
-        check(read_dmem_byte(32'h0005_0000) === 8'hCD, "Destination DMEM received output byte 0xCD");
+        check(read_dmem_byte(32'h0002_0000) === 8'hCD, "Destination DMEM received output byte 0xCD");
 
         // ---------------------------------------------------------------------
         // Test 3: Two-Byte Transfer (2 Bytes)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 3: Two-Byte Transfer (2 Bytes) ---");
-        write_dmem_byte(32'h0004_0010, 8'h11);
-        write_dmem_byte(32'h0004_0011, 8'h22);
+        write_dmem_byte(32'h0001_0010, 8'h11);
+        write_dmem_byte(32'h0001_0011, 8'h22);
         mock_rle_out_len = 16'd2;
         mock_rle_out_buf[0] = 8'h33;
         mock_rle_out_buf[1] = 8'h44;
 
-        trigger_transfer(32'h0004_0010, 32'h0005_0010, 16'd2, 1'b0);
+        trigger_transfer(32'h0001_0010, 32'h0002_0010, 16'd2, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd2, "2-byte transfer reports output len = 2");
         check(mock_rle_in_buf[0] === 8'h11 && mock_rle_in_buf[1] === 8'h22, "RLE received 2 bytes with WSTRB=4'b0011");
-        check(read_dmem_byte(32'h0005_0010) === 8'h33 && read_dmem_byte(32'h0005_0011) === 8'h44,
+        check(read_dmem_byte(32'h0002_0010) === 8'h33 && read_dmem_byte(32'h0002_0011) === 8'h44,
               "Destination DMEM received 2 packed bytes");
 
         // ---------------------------------------------------------------------
         // Test 4: Three-Byte Transfer (3 Bytes)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 4: Three-Byte Transfer (3 Bytes) ---");
-        write_dmem_byte(32'h0004_0020, 8'hA1);
-        write_dmem_byte(32'h0004_0021, 8'hB2);
-        write_dmem_byte(32'h0004_0022, 8'hC3);
+        write_dmem_byte(32'h0001_0020, 8'hA1);
+        write_dmem_byte(32'h0001_0021, 8'hB2);
+        write_dmem_byte(32'h0001_0022, 8'hC3);
         mock_rle_out_len = 16'd3;
         mock_rle_out_buf[0] = 8'hD4;
         mock_rle_out_buf[1] = 8'hE5;
         mock_rle_out_buf[2] = 8'hF6;
 
-        trigger_transfer(32'h0004_0020, 32'h0005_0020, 16'd3, 1'b0);
+        trigger_transfer(32'h0001_0020, 32'h0002_0020, 16'd3, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd3, "3-byte transfer reports output len = 3");
         check(mock_rle_in_buf[0] === 8'hA1 && mock_rle_in_buf[1] === 8'hB2 && mock_rle_in_buf[2] === 8'hC3,
               "RLE received 3 bytes with WSTRB=4'b0111");
-        check(read_dmem_byte(32'h0005_0020) === 8'hD4 && read_dmem_byte(32'h0005_0021) === 8'hE5 &&
-              read_dmem_byte(32'h0005_0022) === 8'hF6, "Destination DMEM received 3 packed bytes");
+        check(read_dmem_byte(32'h0002_0020) === 8'hD4 && read_dmem_byte(32'h0002_0021) === 8'hE5 &&
+              read_dmem_byte(32'h0002_0022) === 8'hF6, "Destination DMEM received 3 packed bytes");
 
         // ---------------------------------------------------------------------
         // Test 5: Four-Byte Transfer (1 full word)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 5: Four-Byte Transfer (Exact 1 Word) ---");
-        for (i = 0; i < 4; i++) write_dmem_byte(32'h0004_0030 + i, 8'h50 + i);
+        for (i = 0; i < 4; i++) write_dmem_byte(32'h0001_0030 + i, 8'h50 + i);
         mock_rle_out_len = 16'd4;
         for (i = 0; i < 4; i++) mock_rle_out_buf[i] = 8'h60 + i;
 
-        trigger_transfer(32'h0004_0030, 32'h0005_0030, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0030, 32'h0002_0030, 16'd4, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd4, "4-byte transfer reports output len = 4");
-        check(read_dmem_word(32'h0005_0030) === 32'h6362_6160, "Destination DMEM received full 32-bit word");
+        check(read_dmem_word(32'h0002_0030) === 32'h6362_6160, "Destination DMEM received full 32-bit word");
 
         // ---------------------------------------------------------------------
         // Test 6: 16-Byte Transfer (4 words) with Decompression Mode
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 6: 16-Byte Decompression Transfer ---");
-        for (i = 0; i < 16; i++) write_dmem_byte(32'h0004_0040 + i, 8'h10 + i);
+        for (i = 0; i < 16; i++) write_dmem_byte(32'h0001_0040 + i, 8'h10 + i);
         mock_rle_out_len = 16'd20; // Expansion: 16 in -> 20 out
         for (i = 0; i < 20; i++) mock_rle_out_buf[i] = 8'h80 + i;
 
-        trigger_transfer(32'h0004_0040, 32'h0005_0040, 16'd16, 1'b1); // MODE=1
+        trigger_transfer(32'h0001_0040, 32'h0002_0040, 16'd16, 1'b1); // MODE=1
         while (!status_done_pulse) @(posedge clk);
 
         check(mock_rle_mode === 1'b1, "Decompression MODE=1 correctly set on RLE");
         check(status_output_len === 16'd20, "16->20 byte expansion transfer completed");
         for (i = 0; i < 20; i++) begin
-            if (read_dmem_byte(32'h0005_0040 + i) !== (8'h80 + i)) check(0, $sformatf("Byte %0d mismatch", i));
+            if (read_dmem_byte(32'h0002_0040 + i) !== (8'h80 + i)) check(0, $sformatf("Byte %0d mismatch", i));
         end
         check(1, "All 20 destination bytes verified in DMEM");
 
@@ -480,16 +480,16 @@ module tb_dma_sequencer;
         // Test 7: 255-Byte Transfer (63 words + 3 bytes partial)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 7: 255-Byte Transfer (Partial Final Word) ---");
-        for (i = 0; i < 255; i++) write_dmem_byte(32'h0004_1000 + i, i & 8'hFF);
+        for (i = 0; i < 255; i++) write_dmem_byte(32'h0001_1000 + i, i & 8'hFF);
         mock_rle_out_len = 16'd255;
         for (i = 0; i < 255; i++) mock_rle_out_buf[i] = (i + 1) & 8'hFF;
 
-        trigger_transfer(32'h0004_1000, 32'h0006_0000, 16'd255, 1'b0);
+        trigger_transfer(32'h0001_1000, 32'h0002_4000, 16'd255, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd255, "255-byte transfer output len = 255");
         for (i = 0; i < 255; i++) begin
-            if (read_dmem_byte(32'h0006_0000 + i) !== ((i + 1) & 8'hFF)) check(0, $sformatf("255-byte mismatch at %0d", i));
+            if (read_dmem_byte(32'h0002_4000 + i) !== ((i + 1) & 8'hFF)) check(0, $sformatf("255-byte mismatch at %0d", i));
         end
         check(1, "All 255 bytes verified in destination DMEM");
 
@@ -497,16 +497,16 @@ module tb_dma_sequencer;
         // Test 8: 256-Byte Transfer (Exact 64 Words Max Capacity)
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 8: 256-Byte Max Capacity Transfer ---");
-        for (i = 0; i < 256; i++) write_dmem_byte(32'h0004_2000 + i, (i * 7) & 8'hFF);
+        for (i = 0; i < 256; i++) write_dmem_byte(32'h0001_2000 + i, (i * 7) & 8'hFF);
         mock_rle_out_len = 16'd128; // 50% compression
         for (i = 0; i < 128; i++) mock_rle_out_buf[i] = (i * 3) & 8'hFF;
 
-        trigger_transfer(32'h0004_2000, 32'h0006_1000, 16'd256, 1'b0);
+        trigger_transfer(32'h0001_2000, 32'h0002_5000, 16'd256, 1'b0);
         while (!status_done_pulse) @(posedge clk);
 
         check(status_output_len === 16'd128, "256->128 byte transfer completed with len = 128");
         for (i = 0; i < 128; i++) begin
-            if (read_dmem_byte(32'h0006_1000 + i) !== ((i * 3) & 8'hFF)) check(0, $sformatf("256-byte mismatch at %0d", i));
+            if (read_dmem_byte(32'h0002_5000 + i) !== ((i * 3) & 8'hFF)) check(0, $sformatf("256-byte mismatch at %0d", i));
         end
         check(1, "All 128 destination bytes verified in DMEM");
 
@@ -515,7 +515,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 9: AXI Read Error ---");
         inject_rd_err = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h04, "AXI read error trapped as ERR_RD_ERR (0x04)");
         inject_rd_err = 0;
@@ -525,7 +525,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 10: AXI Write Error ---");
         inject_wr_err = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h05, "AXI write error trapped as ERR_WR_ERR (0x05)");
         inject_wr_err = 0;
@@ -535,7 +535,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 11: RLE Core Error ---");
         inject_rle_err = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h06, "RLE core error trapped as ERR_RLE_ERR (0x06)");
         inject_rle_err = 0;
@@ -545,7 +545,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 12: RLE Timeout Guard ---");
         inject_rle_timeout = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         while (!status_error_pulse) @(posedge clk);
         check(status_error_code === 8'h07, "RLE timeout trapped as ERR_TIMEOUT (0x07)");
         inject_rle_timeout = 0;
@@ -555,7 +555,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 13: Mid-Transfer Abort & Recovery ---");
         inject_rle_timeout = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         @(posedge clk);
         check(status_busy === 1'b1, "Sequencer is busy during active polling");
         ctrl_abort <= 1'b1;
@@ -568,7 +568,7 @@ module tb_dma_sequencer;
         // Confirm clean recovery
         mock_rle_out_len = 16'd1;
         mock_rle_out_buf[0] = 8'h99;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd1, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd1, 1'b0);
         while (!status_done_pulse) @(posedge clk);
         check(status_output_len === 16'd1, "Normal transfer succeeds following abort");
 
@@ -577,7 +577,7 @@ module tb_dma_sequencer;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 14: Dynamic Reset & Recovery ---");
         inject_rle_timeout = 1;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd4, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd4, 1'b0);
         @(posedge clk);
         check(status_busy === 1'b1, "Sequencer busy prior to dynamic reset");
         rst_n <= 1'b0;
@@ -591,7 +591,7 @@ module tb_dma_sequencer;
         mock_rle_out_len = 16'd2;
         mock_rle_out_buf[0] = 8'h55;
         mock_rle_out_buf[1] = 8'h66;
-        trigger_transfer(32'h0004_0000, 32'h0005_0000, 16'd2, 1'b0);
+        trigger_transfer(32'h0001_0000, 32'h0002_0000, 16'd2, 1'b0);
         while (!status_done_pulse) @(posedge clk);
         check(status_output_len === 16'd2, "Normal transfer succeeds following dynamic reset");
 

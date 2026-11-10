@@ -12,9 +12,10 @@ module uart_tx_monitor (
     logic [31:0] prev_pc = 32'h0;
     int loop_repeat_count = 0;
 
-    // Force MRAC in VeeR core so that Region 1 (0x1000_0000) is recognized as MMIO (side-effect)
+    // Force MRAC in VeeR core so that Region 0 (0x0000_0000 - 0x0FFF_FFFF) is side-effect (non-cacheable)
+    // and Region 8 (0x8000_0000 IMEM) is cacheable/idempotent (matches start.S MRAC = 0x5555_5556)
     initial begin
-        force tb_soc_uart_firmware.u_dut.u_core.veer.dec_tlu_mrac_ff = 32'h0000_000A;
+        force tb_soc_uart_firmware.u_dut.u_core.veer.dec_tlu_mrac_ff = 32'h5555_5556;
     end
 
     // Monitor VeeR core instruction execution trace

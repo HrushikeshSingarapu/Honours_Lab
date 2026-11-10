@@ -11,15 +11,15 @@ package dma_uvm_pkg;
     `uvm_analysis_imp_decl(_transfer)
 
     // DMA Register Offsets
-    localparam bit [31:0] REG_DMA_CONTROL    = 32'h1001_1000;
-    localparam bit [31:0] REG_DMA_STATUS     = 32'h1001_1004;
-    localparam bit [31:0] REG_DMA_SRC_ADDR   = 32'h1001_1008;
-    localparam bit [31:0] REG_DMA_DST_ADDR   = 32'h1001_100C;
-    localparam bit [31:0] REG_DMA_INPUT_LEN  = 32'h1001_1010;
-    localparam bit [31:0] REG_DMA_OUTPUT_LEN = 32'h1001_1014;
-    localparam bit [31:0] REG_DMA_IRQ_ENABLE = 32'h1001_1018;
-    localparam bit [31:0] REG_DMA_IRQ_STATUS = 32'h1001_101C;
-    localparam bit [31:0] REG_DMA_ERROR_CODE = 32'h1001_1020;
+    localparam bit [31:0] REG_DMA_CONTROL    = 32'h000B_0000;
+    localparam bit [31:0] REG_DMA_STATUS     = 32'h000B_0004;
+    localparam bit [31:0] REG_DMA_SRC_ADDR   = 32'h000B_0008;
+    localparam bit [31:0] REG_DMA_DST_ADDR   = 32'h000B_000C;
+    localparam bit [31:0] REG_DMA_INPUT_LEN  = 32'h000B_0010;
+    localparam bit [31:0] REG_DMA_OUTPUT_LEN = 32'h000B_0014;
+    localparam bit [31:0] REG_DMA_IRQ_ENABLE = 32'h000B_0018;
+    localparam bit [31:0] REG_DMA_IRQ_STATUS = 32'h000B_001C;
+    localparam bit [31:0] REG_DMA_ERROR_CODE = 32'h000B_0020;
 
     typedef enum bit {
         DMA_MODE_COMPRESS   = 1'b0,
@@ -191,6 +191,9 @@ package dma_uvm_pkg;
         int cov_compress_hits     = 0;
         int cov_decompress_hits   = 0;
         int cov_error_case_hits   = 0;
+        int cov_bad_addr_hits     = 0;
+        int cov_rle_err_hits      = 0;
+        int cov_256b_out_hits     = 0;
         int total_samples         = 0;
 
         function new(string name = "dma_coverage", uvm_component parent = null);
@@ -216,6 +219,9 @@ package dma_uvm_pkg;
             else cov_decompress_hits++;
 
             if (item.expected_error || item.actual_error) cov_error_case_hits++;
+            if (item.actual_error && (item.actual_err_code == 8'h01 || item.actual_err_code == 8'h02)) cov_bad_addr_hits++;
+            if (item.actual_error && item.actual_err_code == 8'h06) cov_rle_err_hits++;
+            if (!item.actual_error && item.actual_out_len == 256) cov_256b_out_hits++;
         endfunction
 
         function void report_phase(uvm_phase phase);
@@ -229,8 +235,11 @@ package dma_uvm_pkg;
                            (cov_max_buf_hits > 0) +
                            (cov_compress_hits > 0) +
                            (cov_decompress_hits > 0) +
-                           (cov_error_case_hits > 0);
-            cov_pct = (real'(covered_bins) / 9.0) * 100.0;
+                           (cov_error_case_hits > 0) +
+                           (cov_bad_addr_hits > 0) +
+                           (cov_rle_err_hits > 0) +
+                           (cov_256b_out_hits > 0);
+            cov_pct = (real'(covered_bins) / 12.0) * 100.0;
 
             `uvm_info("DMA_COV", "========================================================", UVM_LOW)
             `uvm_info("DMA_COV", "            DMA FUNCTIONAL COVERAGE REPORT             ", UVM_LOW)
@@ -240,11 +249,14 @@ package dma_uvm_pkg;
             `uvm_info("DMA_COV", $sformatf("  3-Byte Transfer Bin          : %0d hits", cov_byte_len_3_hits), UVM_LOW)
             `uvm_info("DMA_COV", $sformatf("  4-Byte (1-Word) Transfer Bin : %0d hits", cov_byte_len_4_hits), UVM_LOW)
             `uvm_info("DMA_COV", $sformatf("  Multi-Word Burst Bin         : %0d hits", cov_multi_word_hits), UVM_LOW)
-            `uvm_info("DMA_COV", $sformatf("  Maximum Capacity (256B) Bin  : %0d hits", cov_max_buf_hits), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  Maximum Capacity (256B In)   : %0d hits", cov_max_buf_hits), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  Maximum Capacity (256B Out)  : %0d hits", cov_256b_out_hits), UVM_LOW)
             `uvm_info("DMA_COV", $sformatf("  Compression Mode Bin         : %0d hits", cov_compress_hits), UVM_LOW)
             `uvm_info("DMA_COV", $sformatf("  Decompression Mode Bin       : %0d hits", cov_decompress_hits), UVM_LOW)
-            `uvm_info("DMA_COV", $sformatf("  Error Detection Bin          : %0d hits", cov_error_case_hits), UVM_LOW)
-            `uvm_info("DMA_COV", $sformatf("  Overall Covered Functional Bins : %0d / 9 (%0.1f%%)", covered_bins, cov_pct), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  Parameter Error Bin (Len)    : %0d hits", cov_error_case_hits), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  Bad Src/Dst Boundary Err Bin : %0d hits", cov_bad_addr_hits), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  RLE Protocol/Odd-Len Err Bin : %0d hits", cov_rle_err_hits), UVM_LOW)
+            `uvm_info("DMA_COV", $sformatf("  Overall Covered Functional Bins : %0d / 12 (%0.1f%%)", covered_bins, cov_pct), UVM_LOW)
             `uvm_info("DMA_COV", "========================================================", UVM_LOW)
         endfunction
     endclass: dma_coverage
@@ -643,23 +655,22 @@ package dma_uvm_pkg;
 
         function void build_phase(uvm_phase phase);
             super.build_phase(phase);
-            // Populate reference DMEM matching initial testbench state
-            // Compression source data at 0x0004_0000 (repeating 0xAA)
-            for (int i = 0; i < 65536; i++) begin
-                ref_dmem[32'h0004_0000 + i] = 8'hAA;
+            // Populate full 128 KB reference DMEM matching initial testbench state
+            for (int i = 0; i < 131072; i++) begin
+                ref_dmem[32'h0001_0000 + i] = 8'hAA;
             end
-            // Decompression tokens at 0x0005_0000: [10, 0x41], [6, 0x42]
-            ref_dmem[32'h0005_0000 + 0] = 8'd10;
-            ref_dmem[32'h0005_0000 + 1] = 8'h41;
-            ref_dmem[32'h0005_0000 + 2] = 8'd6;
-            ref_dmem[32'h0005_0000 + 3] = 8'h42;
+            // Decompression tokens at 0x0002_0000: [10, 0x41], [6, 0x42]
+            ref_dmem[32'h0002_0000 + 0] = 8'd10;
+            ref_dmem[32'h0002_0000 + 1] = 8'h41;
+            ref_dmem[32'h0002_0000 + 2] = 8'd6;
+            ref_dmem[32'h0002_0000 + 3] = 8'h42;
         endfunction
 
         // Track observed master AXI beats
         function void write_master(dma_master_beat_item beat);
             if (beat.is_write) begin
-                // Check if write is targeting destination Data Memory (0x0004_0000 .. 0x0007_FFFF)
-                if (beat.addr >= 32'h0004_0000 && beat.addr <= 32'h0007_FFFF) begin
+                // Check if write is targeting destination Data Memory (0x0001_0000 .. 0x0002_FFFF)
+                if (beat.addr >= 32'h0001_0000 && beat.addr <= 32'h0002_FFFF) begin
                     written_addrs.push_back(beat.addr);
                     if (beat.strb[0]) reconstructed_dst_mem[beat.addr + 0] = beat.data[7:0];
                     if (beat.strb[1]) reconstructed_dst_mem[beat.addr + 1] = beat.data[15:8];
@@ -671,20 +682,53 @@ package dma_uvm_pkg;
 
         // Verify high-level completed transfer
         function void write_transfer(dma_seq_item item);
-            bit pass;
-            total_checks++;
-            pass = 1'b1;
+            bit   pass;
+            bit   exp_err;
+            logic [7:0] exp_err_code;
+            logic [7:0] src_payload [];
+            logic [7:0] gold_out [];
+            int         gold_len;
+            bit         gold_err;
 
-            // Scenario: Parameter Error Case (Zero Length)
-            if (item.length == 0) begin
-                if (item.actual_error && item.actual_err_code == 8'h03) begin
+            total_checks++;
+            pass         = 1'b1;
+            exp_err      = 1'b0;
+            exp_err_code = 8'h00;
+
+            if (item.length == 0 || item.length > 256) begin
+                exp_err      = 1'b1;
+                exp_err_code = 8'h03; // ERR_BAD_LEN
+            end else if (item.src_addr < 32'h0001_0000 || item.src_addr > 32'h0002_FFFF ||
+                         ((longint'(item.src_addr) + longint'(item.length) - 1) > 64'h0002_FFFF)) begin
+                exp_err      = 1'b1;
+                exp_err_code = 8'h01; // ERR_BAD_SRC
+            end else if (item.dst_addr < 32'h0001_0000 || item.dst_addr > 32'h0002_FFFF) begin
+                exp_err      = 1'b1;
+                exp_err_code = 8'h02; // ERR_BAD_DST
+            end else begin
+                src_payload = new[item.length];
+                for (int i = 0; i < item.length; i++) begin
+                    src_payload[i] = ref_dmem.exists(item.src_addr + i) ? ref_dmem[item.src_addr + i] : 8'h00;
+                end
+                ref_model.predict(item.mode, src_payload, item.length, gold_out, gold_len, gold_err);
+                if (gold_err || gold_len > 256) begin
+                    exp_err      = 1'b1;
+                    exp_err_code = 8'h06; // ERR_RLE_ERR
+                end else if (gold_len > 0 && ((longint'(item.dst_addr) + longint'(gold_len) - 1) > 64'h0002_FFFF)) begin
+                    exp_err      = 1'b1;
+                    exp_err_code = 8'h02; // ERR_BAD_DST (spillover)
+                end
+            end
+
+            if (exp_err) begin
+                if (item.actual_error && item.actual_err_code == exp_err_code && written_addrs.size() == 0) begin
                     pass_checks++;
-                    `uvm_info("DMA_SCB", $sformatf(">>> [PASS] DMA Expected Error Correctly Raised! (ErrCode=0x%02h: ERR_BAD_LEN)",
+                    `uvm_info("DMA_SCB", $sformatf(">>> [PASS] DMA Expected Error Correctly Raised! (ErrCode=0x%02h)",
                               item.actual_err_code), UVM_LOW)
                 end else begin
                     fail_checks++;
-                    `uvm_error("DMA_SCB", $sformatf("Expected DMA error for zero length! ActErr=%b, ErrCode=0x%02h",
-                               item.actual_error, item.actual_err_code))
+                    `uvm_error("DMA_SCB", $sformatf("Expected DMA error ErrCode=0x%02h with 0 writes! ActErr=%b, ActCode=0x%02h, WrCount=%0d",
+                               exp_err_code, item.actual_error, item.actual_err_code, written_addrs.size()))
                 end
                 reconstructed_dst_mem.delete();
                 written_addrs.delete();
@@ -696,19 +740,6 @@ package dma_uvm_pkg;
                 `uvm_error("DMA_SCB", $sformatf("Unexpected DMA Error! ErrCode=0x%02h", item.actual_err_code))
                 pass = 1'b0;
             end else begin
-                // 1. Run independent software reference model
-                logic [7:0] src_payload [];
-                logic [7:0] gold_out [];
-                int         gold_len;
-                bit         gold_err;
-
-                src_payload = new[item.length];
-                for (int i = 0; i < item.length; i++) begin
-                    src_payload[i] = ref_dmem.exists(item.src_addr + i) ? ref_dmem[item.src_addr + i] : 8'h00;
-                end
-
-                ref_model.predict(item.mode, src_payload, item.length, gold_out, gold_len, gold_err);
-
                 // 2. Verify Output Length
                 if (item.actual_out_len !== gold_len) begin
                     `uvm_error("DMA_SCB", $sformatf("Output Length Mismatch! Hardware=%0d, Golden Ref=%0d",
@@ -859,7 +890,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 1: Single-byte transfer (1 byte)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_1b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_1000, 1, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_1000, 1, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -868,7 +899,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 2: Two-byte transfer (2 bytes)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_2b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_2000, 2, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_2000, 2, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -877,7 +908,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 3: Three-byte transfer (3 bytes)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_3b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_3000, 3, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_3000, 3, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -886,7 +917,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 4: Four-byte (1-Word) transfer", UVM_LOW)
             item = dma_seq_item::type_id::create("item_4b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_4000, 4, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_4000, 4, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -895,7 +926,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 5: Compression Flow (16 bytes)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_16b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_5000, 16, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_5000, 16, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -904,7 +935,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 6: Decompression Flow (4 bytes tokens)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_decomp");
             start_item(item);
-            item.set_transfer(32'h0005_0000, 32'h0006_0000, 4, DMA_MODE_DECOMPRESS);
+            item.set_transfer(32'h0002_0000, 32'h0002_6000, 4, DMA_MODE_DECOMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -913,7 +944,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 7: Multi-word burst transfer (64 bytes)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_64b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_7000, 64, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_7000, 64, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -922,7 +953,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 8: Maximum Buffer Capacity (256 bytes)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_256b");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_8000, 256, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_8000, 256, DMA_MODE_COMPRESS);
             finish_item(item);
 
             // -----------------------------------------------------------------
@@ -931,7 +962,7 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 9: Parameter Error Detection (Zero Length)", UVM_LOW)
             item = dma_seq_item::type_id::create("item_err");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_9000, 0, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_9000, 0, DMA_MODE_COMPRESS);
             item.expected_error = 1'b1;
             finish_item(item);
 
@@ -941,8 +972,59 @@ package dma_uvm_pkg;
             `uvm_info("DMA_SEQ", ">>> Executing Scenario 10: W-before-AW Acceptance Under Backpressure", UVM_LOW)
             item = dma_seq_item::type_id::create("item_w_before_aw");
             start_item(item);
-            item.set_transfer(32'h0004_0000, 32'h0005_A000, 16, DMA_MODE_COMPRESS);
+            item.set_transfer(32'h0001_0000, 32'h0002_A000, 16, DMA_MODE_COMPRESS);
             item.inject_aw_backpressure = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 11: Back-to-Back 256B Roundtrip Decompression Ending @ 0x0002_FFFF
+            // Uses compressed output produced at 0x0002_8000 (4 bytes -> 256 bytes)
+            // -----------------------------------------------------------------
+            `uvm_info("DMA_SEQ", ">>> Executing Scenario 11: Full 256B Decompression to 0x0002_FF00..0x0002_FFFF", UVM_LOW)
+            item = dma_seq_item::type_id::create("item_decomp_256b");
+            start_item(item);
+            item.set_transfer(32'h0002_8000, 32'h0002_FF00, 4, DMA_MODE_DECOMPRESS);
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 12: Parameter Error (Destination Outside DMEM -> ERR_BAD_DST)
+            // -----------------------------------------------------------------
+            `uvm_info("DMA_SEQ", ">>> Executing Scenario 12: Invalid DST_ADDR (0x0003_0000) -> ERR_BAD_DST", UVM_LOW)
+            item = dma_seq_item::type_id::create("item_bad_dst");
+            start_item(item);
+            item.set_transfer(32'h0001_0000, 32'h0003_0000, 4, DMA_MODE_COMPRESS);
+            item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 13: Source End-of-DMEM Overflow (0x0002_FFFC len=8 -> ERR_BAD_SRC)
+            // -----------------------------------------------------------------
+            `uvm_info("DMA_SEQ", ">>> Executing Scenario 13: SRC End-of-DMEM Spillover -> ERR_BAD_SRC", UVM_LOW)
+            item = dma_seq_item::type_id::create("item_src_spill");
+            start_item(item);
+            item.set_transfer(32'h0002_FFFC, 32'h0002_B000, 8, DMA_MODE_COMPRESS);
+            item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 14: RLE Decompression Protocol Error (Odd Length -> ERR_RLE_ERR)
+            // -----------------------------------------------------------------
+            `uvm_info("DMA_SEQ", ">>> Executing Scenario 14: Odd Decomp Input Length -> ERR_RLE_ERR", UVM_LOW)
+            item = dma_seq_item::type_id::create("item_rle_err");
+            start_item(item);
+            item.set_transfer(32'h0002_0000, 32'h0002_B000, 3, DMA_MODE_DECOMPRESS);
+            item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 15: Post-RLE Destination End-of-DMEM Spillover -> ERR_BAD_DST
+            // 4 bytes [10,'A',6,'B'] -> 16 bytes @ 0x0002_FFF8 would overflow 0x0002_FFFF
+            // -----------------------------------------------------------------
+            `uvm_info("DMA_SEQ", ">>> Executing Scenario 15: Post-RLE DST Spillover -> ERR_BAD_DST", UVM_LOW)
+            item = dma_seq_item::type_id::create("item_dst_spill");
+            start_item(item);
+            item.set_transfer(32'h0002_0000, 32'h0002_FFF8, 4, DMA_MODE_DECOMPRESS);
+            item.expected_error = 1'b1;
             finish_item(item);
         endtask
     endclass: dma_master_sequence

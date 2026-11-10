@@ -83,10 +83,10 @@ module tb_uart_top;
     integer timeout;
     integer i_loop;
 
-    // Simulation watchdog (500 us maximum simulation time)
+    // Simulation watchdog (1.5 ms maximum simulation time)
     initial begin
-        #500_000;
-        $display("\n>>> ERROR: Simulation Watchdog Expired (500us)! Simulation aborted. <<<");
+        #1_500_000;
+        $display("\n>>> ERROR: Simulation Watchdog Expired (1.5ms)! Simulation aborted. <<<");
         $finish;
     end
 
@@ -732,6 +732,43 @@ module tb_uart_top;
 
         $display("  PASS: All 4 loopback bytes (0xCA, 0xFE, 0xBA, 0xBE) verified");
         check_reg(REG_LSR, 32'h0000_0000, 32'h0000_0001, "Loopback complete: DR=0");
+
+        // ---------------------------------------------------------------------
+        // TEST 11: Parity (Odd/Even), 2 Stop Bits, Runtime Baud & Dynamic Reset
+        // ---------------------------------------------------------------------
+        $display("\n[TEST 11] Parity (Odd/Even), 2 Stop Bits, Baud Reconfig & Dynamic Reset");
+        // 11a: Odd parity + 2 stop bits (LCR = 0x0F: 8-bit, 2 stop, parity_en=1, odd=0)
+        axi_write(REG_LCR, 32'h0000_000F, 2'b00);
+        axi_write(REG_THR, 32'h0000_005A, 2'b00);
+        repeat(BIT_CYCLES * 15) @(posedge clk);
+        axi_read(REG_RBR, rd_val, 2'b00);
+        test_count = test_count + 1;
+        if (rd_val[7:0] === 8'h5A) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL Test 11a (8O2): expected 0x5A, got 0x%02x", rd_val[7:0]); end
+
+        // 11b: Even parity + 2 stop bits + runtime baud divisor change (divisor = 32)
+        axi_write(REG_LCR,  32'h0000_009F, 2'b00); // DLAB=1, 8E2
+        axi_write(REG_BAUD, 32'd32,        2'b00);
+        axi_write(REG_LCR,  32'h0000_001F, 2'b00); // DLAB=0, 8E2
+        axi_write(REG_THR,  32'h0000_00A3, 2'b00);
+        repeat(35 * 16) @(posedge clk);
+        axi_read(REG_RBR, rd_val, 2'b00);
+        test_count = test_count + 1;
+        if (rd_val[7:0] === 8'hA3) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL Test 11b (8E2/baud32): expected 0xA3, got 0x%02x", rd_val[7:0]); end
+
+        // 11c: Dynamic reset while transmitting
+        loopback_mode = 0;
+        axi_write(REG_THR, 32'h0000_007E, 2'b00);
+        repeat(20) @(posedge clk);
+        rst <= 1'b1;
+        repeat(5) @(posedge clk);
+        test_count = test_count + 1;
+        if (uart_tx === 1'b1 && uart_irq === 1'b0) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL Test 11c: TX/IRQ not idle during reset"); end
+        rst <= 1'b0;
+        repeat(5) @(posedge clk);
+        check_reg(REG_LSR, 32'h0000_0060, 32'h0000_0061, "Post-reset LSR restores THRE=1, TEMT=1, DR=0");
 
         // ---------------------------------------------------------------------
         // Final Summary

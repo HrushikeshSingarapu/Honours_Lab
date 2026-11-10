@@ -7,7 +7,6 @@
 +incdir+rtl/soc
 +incdir+rtl/interconnect
 +incdir+rtl/peripherals/uart
-+incdir+rtl/peripherals/rle
 +incdir+rtl/peripherals/timer
 +incdir+rtl/peripherals/gpio
 +incdir+rtl/peripherals/crc

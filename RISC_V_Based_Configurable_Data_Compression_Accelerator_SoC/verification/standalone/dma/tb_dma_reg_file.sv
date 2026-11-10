@@ -32,7 +32,7 @@ module tb_dma_reg_file;
     localparam CLK_PERIOD = 10; // 100 MHz clock
 
     // Register Offsets
-    localparam [31:0] BASE_ADDR          = 32'h1001_1000;
+    localparam [31:0] BASE_ADDR          = 32'h000B_0000;
     localparam [31:0] REG_DMA_CONTROL    = BASE_ADDR + 32'h000;
     localparam [31:0] REG_DMA_STATUS     = BASE_ADDR + 32'h004;
     localparam [31:0] REG_DMA_SRC_ADDR   = BASE_ADDR + 32'h008;
@@ -368,8 +368,8 @@ module tb_dma_reg_file;
         $display("\n--- Test Group 1: Reset Defaults ---");
         axi_read(REG_DMA_CONTROL,    32'h0000_0000, 32'hFFFF_FFFF, 8'd1, RESP_OKAY, "CONTROL reset value");
         axi_read(REG_DMA_STATUS,     32'h0000_0000, 32'h0000_0007, 8'd2, RESP_OKAY, "STATUS reset value (all clear)");
-        axi_read(REG_DMA_SRC_ADDR,   32'h0004_0000, 32'hFFFF_FFFF, 8'd3, RESP_OKAY, "SRC_ADDR default");
-        axi_read(REG_DMA_DST_ADDR,   32'h0004_0100, 32'hFFFF_FFFF, 8'd4, RESP_OKAY, "DST_ADDR default");
+        axi_read(REG_DMA_SRC_ADDR,   32'h0001_0000, 32'hFFFF_FFFF, 8'd3, RESP_OKAY, "SRC_ADDR default");
+        axi_read(REG_DMA_DST_ADDR,   32'h0001_0100, 32'hFFFF_FFFF, 8'd4, RESP_OKAY, "DST_ADDR default");
         axi_read(REG_DMA_INPUT_LEN,  32'h0000_0000, 32'h0000_FFFF, 8'd5, RESP_OKAY, "INPUT_LEN reset value");
         axi_read(REG_DMA_OUTPUT_LEN, 32'h0000_0000, 32'h0000_FFFF, 8'd6, RESP_OKAY, "OUTPUT_LEN reset value");
         axi_read(REG_DMA_IRQ_ENABLE, 32'h0000_0000, 32'h0000_0003, 8'd7, RESP_OKAY, "IRQ_ENABLE reset value");
@@ -389,11 +389,11 @@ module tb_dma_reg_file;
         // TEST GROUP 2: Basic Read / Write Operations
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 2: Basic Read / Write Configuration ---");
-        axi_write(REG_DMA_SRC_ADDR,  32'h0004_1234, 4'b1111, 8'd10, RESP_OKAY, "Write SRC_ADDR");
-        axi_read (REG_DMA_SRC_ADDR,  32'h0004_1234, 32'hFFFF_FFFF, 8'd10, RESP_OKAY, "Readback SRC_ADDR");
+        axi_write(REG_DMA_SRC_ADDR,  32'h0001_1234, 4'b1111, 8'd10, RESP_OKAY, "Write SRC_ADDR");
+        axi_read (REG_DMA_SRC_ADDR,  32'h0001_1234, 32'hFFFF_FFFF, 8'd10, RESP_OKAY, "Readback SRC_ADDR");
 
-        axi_write(REG_DMA_DST_ADDR,  32'h0005_5678, 4'b1111, 8'd11, RESP_OKAY, "Write DST_ADDR");
-        axi_read (REG_DMA_DST_ADDR,  32'h0005_5678, 32'hFFFF_FFFF, 8'd11, RESP_OKAY, "Readback DST_ADDR");
+        axi_write(REG_DMA_DST_ADDR,  32'h0002_5678, 4'b1111, 8'd11, RESP_OKAY, "Write DST_ADDR");
+        axi_read (REG_DMA_DST_ADDR,  32'h0002_5678, 32'hFFFF_FFFF, 8'd11, RESP_OKAY, "Readback DST_ADDR");
 
         axi_write(REG_DMA_INPUT_LEN, 32'h0000_00A0, 4'b1111, 8'd12, RESP_OKAY, "Write INPUT_LEN (160 bytes)");
         axi_read (REG_DMA_INPUT_LEN, 32'h0000_00A0, 32'h0000_FFFF, 8'd12, RESP_OKAY, "Readback INPUT_LEN");
@@ -403,7 +403,7 @@ module tb_dma_reg_file;
 
         // Verify configuration outputs to FSM
         total_tests++;
-        if (cfg_src_addr_o === 32'h0004_1234 && cfg_dst_addr_o === 32'h0005_5678 &&
+        if (cfg_src_addr_o === 32'h0001_1234 && cfg_dst_addr_o === 32'h0002_5678 &&
             cfg_input_len_o === 16'h00A0 && ctrl_mode_o === 1'b1) begin
             $display("[PASS] Configuration signals propagated correctly to FSM interface");
             pass_count++;
@@ -416,9 +416,9 @@ module tb_dma_reg_file;
         // TEST GROUP 3: Partial Writes Using WSTRB Byte Enables
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 3: Byte Enables (WSTRB) ---");
-        // Update only byte 0 and byte 3 of SRC_ADDR: 0x0004_1234 -> 0xAA04_12EF
+        // Update only byte 0 and byte 3 of SRC_ADDR: 0x0001_1234 -> 0xAA01_12EF
         axi_write(REG_DMA_SRC_ADDR, 32'hAA00_00EF, 4'b1001, 8'd14, RESP_OKAY, "Partial write SRC_ADDR [3] & [0]");
-        axi_read (REG_DMA_SRC_ADDR, 32'hAA04_12EF, 32'hFFFF_FFFF, 8'd14, RESP_OKAY, "Verify partial write SRC_ADDR");
+        axi_read (REG_DMA_SRC_ADDR, 32'hAA01_12EF, 32'hFFFF_FFFF, 8'd14, RESP_OKAY, "Verify partial write SRC_ADDR");
 
         // Update byte 1 of INPUT_LEN: 0x00A0 -> 0x01A0 (256+160 = 416)
         axi_write(REG_DMA_INPUT_LEN, 32'h0000_0100, 4'b0010, 8'd15, RESP_OKAY, "Partial write INPUT_LEN byte 1");
@@ -480,12 +480,12 @@ module tb_dma_reg_file;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 5: Independent AW and W Handshakes ---");
         // Case A: AW valid first, W delayed by 3 cycles
-        axi_write_aw_first(REG_DMA_SRC_ADDR, 32'h0004_CAFE, 4'b1111, 8'd18, 3, RESP_OKAY, "AW-First decoupled write");
-        axi_read          (REG_DMA_SRC_ADDR, 32'h0004_CAFE, 32'hFFFF_FFFF, 8'd18, RESP_OKAY, "Verify AW-First write result");
+        axi_write_aw_first(REG_DMA_SRC_ADDR, 32'h0001_CAFE, 4'b1111, 8'd18, 3, RESP_OKAY, "AW-First decoupled write");
+        axi_read          (REG_DMA_SRC_ADDR, 32'h0001_CAFE, 32'hFFFF_FFFF, 8'd18, RESP_OKAY, "Verify AW-First write result");
 
         // Case B: W valid first, AW delayed by 4 cycles
-        axi_write_w_first (REG_DMA_DST_ADDR, 32'h0004_BABE, 4'b1111, 8'd19, 4, RESP_OKAY, "W-First decoupled write");
-        axi_read          (REG_DMA_DST_ADDR, 32'h0004_BABE, 32'hFFFF_FFFF, 8'd19, RESP_OKAY, "Verify W-First write result");
+        axi_write_w_first (REG_DMA_DST_ADDR, 32'h0001_BABE, 4'b1111, 8'd19, 4, RESP_OKAY, "W-First decoupled write");
+        axi_read          (REG_DMA_DST_ADDR, 32'h0001_BABE, 32'hFFFF_FFFF, 8'd19, RESP_OKAY, "Verify W-First write result");
 
         // ---------------------------------------------------------------------
         // TEST GROUP 6: Read-Only Protection and Unmapped Offsets
@@ -517,7 +517,7 @@ module tb_dma_reg_file;
         axi_read(REG_DMA_STATUS, 32'h0000_0001, 32'h0000_0001, 8'd25, RESP_OKAY, "STATUS reflects BUSY=1");
 
         // Writing SRC_ADDR while busy must return SLVERR
-        axi_write(REG_DMA_SRC_ADDR, 32'h0004_9999, 4'b1111, 8'd26, RESP_SLVERR, "Write SRC_ADDR while busy rejected with SLVERR");
+        axi_write(REG_DMA_SRC_ADDR, 32'h0001_9999, 4'b1111, 8'd26, RESP_SLVERR, "Write SRC_ADDR while busy rejected with SLVERR");
 
         // Writing START while busy must NOT trigger ctrl_start_pulse_o
         axi_write(REG_DMA_CONTROL, 32'h0000_0001, 4'b1111, 8'd27, RESP_OKAY, "START write attempted while busy");
@@ -641,7 +641,7 @@ module tb_dma_reg_file;
         repeat (2) @(posedge clk);
 
         // Verify registers returned to default values
-        axi_read(REG_DMA_SRC_ADDR,   32'h0004_0000, 32'hFFFF_FFFF, 8'd42, RESP_OKAY, "Post-reset SRC_ADDR is default");
+        axi_read(REG_DMA_SRC_ADDR,   32'h0001_0000, 32'hFFFF_FFFF, 8'd42, RESP_OKAY, "Post-reset SRC_ADDR is default");
         axi_read(REG_DMA_IRQ_ENABLE, 32'h0000_0000, 32'h0000_0003, 8'd43, RESP_OKAY, "Post-reset IRQ_ENABLE is 0");
 
         // =====================================================================

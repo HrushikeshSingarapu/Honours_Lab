@@ -172,11 +172,11 @@ module tb_vip_sanity;
             trace_vif.trace_rv_i_valid_ip   = 0;
             repeat (2) @(posedge clk);
 
-            // 2. LUI x2, 0x10000
+            // 2. LUI x2, 0x30 (UART base 0x0003_0000)
             #1;
             trace_vif.trace_rv_i_valid_ip   = 1;
             trace_vif.trace_rv_i_address_ip = 32'h8000_0004;
-            trace_vif.trace_rv_i_insn_ip    = 32'h1000_0137; // lui x2, 0x10000
+            trace_vif.trace_rv_i_insn_ip    = 32'h0003_0137; // lui x2, 0x30
             @(posedge clk); #1;
             trace_vif.trace_rv_i_valid_ip   = 0;
             repeat (3) @(posedge clk);
@@ -221,4 +221,3 @@ module tb_vip_sanity;
     end
 
 endmodule
-

@@ -20,6 +20,7 @@
 +incdir+third_party/RISC-V-VeeR-EL2/design/include
 +incdir+third_party/RISC-V-VeeR-EL2/design/lib
 +incdir+third_party/RISC-V-VeeR-EL2/design/dmi
++incdir+verification/assertions
 +incdir+verification/uvm/interfaces
 +incdir+verification/uvm/vip/uart
 +incdir+verification/uvm/vip/gpio
@@ -127,6 +128,13 @@ rtl/accelerators/dma/dma_sequencer.v
 rtl/accelerators/dma/dma_top.v
 rtl/soc/soc_top.v
 rtl/soc/soc_core_top.sv
+
+// --- Protocol Assertions ---
+verification/assertions/axi_protocol_assertions.sv
+verification/assertions/axi4_full_protocol_assertions.sv
+verification/assertions/dma_protocol_assertions.sv
+verification/assertions/rle_protocol_assertions.sv
+verification/assertions/soc_protocol_assertions.sv
 
 // --- Unified SystemVerilog Interfaces ---
 verification/uvm/interfaces/soc_interfaces.sv

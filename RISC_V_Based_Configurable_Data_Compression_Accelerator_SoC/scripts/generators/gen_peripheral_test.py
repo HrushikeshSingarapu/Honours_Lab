@@ -4,6 +4,8 @@ gen_peripheral_test.py
 Generates machine code for VeeR EL2 Peripheral Integration Test.
 """
 
+import os
+
 # Register mapping
 REG = {
     'x0': 0, 'zero': 0,
@@ -163,20 +165,21 @@ asm = Assembler(0x80000000)
 # VeeR Peripheral Integration Test Program
 # ==============================================================================
 
-# 1. Setup MRAC CSR (0x7c0): Region 0 (DMEM) side-effect, Region 1 (MMIO) side-effect
-# mrac = 0x0000000A (Region 1 bit 3=1, Region 0 bit 1=1)
-asm.li('t0', 0x0000000A)
+# 1. Setup MRAC CSR (0x7c0): Region 0 (IMEM alias, DMEM, and MMIO 0x0000_0000-0x0FFF_FFFF)
+#    must be side-effect/non-cacheable (2'b10); Region 8 (0x8000_0000 IMEM) cacheable (2'b01).
+# mrac = 0x55555556 (Region 0 = 2'b10, Regions 1..15 = 2'b01)
+asm.li('t0', 0x55555556)
 asm.csrw(0x7C0, 't0')
 asm.fence()
 
-# 2. Setup DMEM base address (s0 = 0x00040000)
-asm.li('s0', 0x00040000)
+# 2. Setup DMEM base address (s0 = 0x00010000)
+asm.li('s0', 0x00010000)
 
 # ==============================================================================
-# TEST 1: GPIO (Base: 0x10002000)
+# TEST 1: GPIO (Base: 0x00060000)
 # ==============================================================================
 asm.label("test_gpio")
-asm.li('t1', 0x10002000)
+asm.li('t1', 0x00060000)
 
 # 1.1 DIR register (offset 0x08): write 0x000000FF, read back
 asm.li('t2', 0x000000FF)
@@ -204,15 +207,15 @@ asm.lw('t3', 't1', 4)
 asm.li('t4', 0x000000B4)
 asm.bne('t3', 't4', 'fail_gpio_clr')
 
-# GPIO passed -> store signature 0x69100001 to DMEM[1] (0x00040004)
+# GPIO passed -> store signature 0x69100001 to DMEM[1] (0x00010004)
 asm.li('t2', 0x69100001)
 asm.sw('t2', 's0', 4)
 
 # ==============================================================================
-# TEST 2: Timer (Base: 0x10001000)
+# TEST 2: Timer (Base: 0x00050000)
 # ==============================================================================
 asm.label("test_timer")
-asm.li('t1', 0x10001000)
+asm.li('t1', 0x00050000)
 
 # 2.1 Set MTIMECMP_LOW (offset 0x08) = 0x00000064 (100)
 asm.li('t2', 0x00000064)
@@ -235,15 +238,15 @@ asm.bnez('t4', 'timer_spin')
 asm.lw('t3', 't1', 0)
 asm.beqz('t3', 'fail_timer_count')
 
-# Timer passed -> store signature 0x713E0002 to DMEM[2] (0x00040008)
+# Timer passed -> store signature 0x713E0002 to DMEM[2] (0x00010008)
 asm.li('t2', 0x713E0002)
 asm.sw('t2', 's0', 8)
 
 # ==============================================================================
-# TEST 3: UART (Base: 0x10000000)
+# TEST 3: UART (Base: 0x00030000)
 # ==============================================================================
 asm.label("test_uart")
-asm.li('t1', 0x10000000)
+asm.li('t1', 0x00030000)
 
 # 3.1 Write UART_LCR (offset 0x0C) = 0x00000003, read back
 asm.li('t2', 0x00000003)
@@ -262,15 +265,15 @@ asm.sw('t2', 't1', 0)
 asm.li('t2', 0x00000049)
 asm.sw('t2', 't1', 0)
 
-# UART passed -> store signature 0x0A270003 to DMEM[3] (0x0004000C)
+# UART passed -> store signature 0x0A270003 to DMEM[3] (0x0001000C)
 asm.li('t2', 0x0A270003)
 asm.sw('t2', 's0', 0x0C)
 
 # ==============================================================================
-# TEST 4: CRC-32 (Base: 0x10012000)
+# TEST 4: CRC-32 (Base: 0x000A0000)
 # ==============================================================================
 asm.label("test_crc")
-asm.li('t1', 0x10012000)
+asm.li('t1', 0x000A0000)
 
 # 4.1 Write and read back CRC_INIT (offset 0x10)
 asm.li('t2', 0x12345678)
@@ -300,15 +303,15 @@ asm.bne('t4', 't5', 'fail_crc_count')
 asm.lw('t3', 't1', 4)
 asm.beqz('t3', 'fail_crc_res')
 
-# CRC passed -> store signature 0xC2C30004 to DMEM[4] (0x00040010)
+# CRC passed -> store signature 0xC2C30004 to DMEM[4] (0x00010010)
 asm.li('t2', 0xC2C30004)
 asm.sw('t2', 's0', 0x10)
 
 # ==============================================================================
-# TEST 5: RLE Accelerator (Base: 0x10010000)
+# TEST 5: RLE Accelerator (Base: 0x000D0000)
 # ==============================================================================
 asm.label("test_rle")
-asm.li('t1', 0x10010000)
+asm.li('t1', 0x000D0000)
 
 # 5.1 Set REG_INPUT_LENGTH (offset 0x08) = 8
 asm.li('t2', 8)
@@ -331,7 +334,7 @@ asm.lw('t3', 't1', 4)
 asm.andi('t4', 't3', 1)
 asm.bnez('t4', 'fail_rle_status')
 
-# RLE passed -> store signature 0x21E00005 to DMEM[5] (0x00040014)
+# RLE passed -> store signature 0x21E00005 to DMEM[5] (0x00010014)
 asm.li('t2', 0x21E00005)
 asm.sw('t2', 's0', 0x14)
 

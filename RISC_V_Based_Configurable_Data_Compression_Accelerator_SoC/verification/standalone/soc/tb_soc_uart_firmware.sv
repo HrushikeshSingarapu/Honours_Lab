@@ -31,8 +31,8 @@ module tb_soc_uart_firmware;
     always #5 clk = ~clk;
 
     soc_core_top #(
-        .IMEM_DEPTH(65536),
-        .DMEM_DEPTH(65536)
+        .IMEM_DEPTH(16384),
+        .DMEM_DEPTH(32768)
     ) u_dut (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -70,7 +70,7 @@ module tb_soc_uart_firmware;
         uart_tx_transitions = 0;
         prev_uart_tx = 1;
 
-        // Load the 23 words generated from the C firmware.
+        // Load the 27 words generated from the C firmware.
         begin
             int fd;
             fd = $fopen("firmware/images/uart_test_word.hex", "r");
@@ -83,14 +83,20 @@ module tb_soc_uart_firmware;
                     $fclose(fd);
                     $readmemh("../firmware/images/uart_test_word.hex", u_dut.u_soc.u_imem.mem);
                 end else begin
-                    $readmemh("../../firmware/images/uart_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    fd = $fopen("../../firmware/images/uart_test_word.hex", "r");
+                    if (fd != 0) begin
+                        $fclose(fd);
+                        $readmemh("../../firmware/images/uart_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    end else begin
+                        $readmemh("../../../firmware/images/uart_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    end
                 end
             end
         end
 
         $display("==============================================");
         $display("VeeR EL2 C Firmware UART Test");
-        $display("Loaded 23 firmware instruction words");
+        $display("Loaded 27 firmware instruction words");
         $display("==============================================");
 
         repeat (30) @(posedge clk);

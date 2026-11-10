@@ -70,8 +70,11 @@ module axi_protocol_assertions #(
     int r_stability_err  = 0;
     int b_stability_err  = 0;
     int resp_invalid_err = 0;
+    int reset_err        = 0;
+    int x_check_err      = 0;
+    int rst_low_cycles   = 0;
 
-    always @(posedge clk or negedge rst_n) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             prev_awvalid <= 1'b0;
             prev_awready <= 1'b0;
@@ -83,7 +86,26 @@ module axi_protocol_assertions #(
             prev_rready  <= 1'b0;
             prev_bvalid  <= 1'b0;
             prev_bready  <= 1'b0;
+            if ($time > 0) begin
+                if (rst_low_cycles < 10) rst_low_cycles <= rst_low_cycles + 1;
+                if (rst_low_cycles >= 1) begin
+                    assert (bvalid === 1'b0) else begin
+                        $display("[%0t ns] [%s ASSERTION ERROR] BVALID asserted while rst_n is low!", $time, NAME);
+                        reset_err++;
+                    end
+                    assert (rvalid === 1'b0) else begin
+                        $display("[%0t ns] [%s ASSERTION ERROR] RVALID asserted while rst_n is low!", $time, NAME);
+                        reset_err++;
+                    end
+                end
+            end
         end else begin
+            rst_low_cycles <= 0;
+
+            assert (!$isunknown({awvalid, wvalid, arvalid, bvalid, rvalid})) else begin
+                $display("[%0t ns] [%s ASSERTION ERROR] Unknown X/Z on AXI VALID signals!", $time, NAME);
+                x_check_err++;
+            end
             // -----------------------------------------------------------------
             // 1. Write Address Channel Stability (A2.2.1)
             // -----------------------------------------------------------------
@@ -132,6 +154,10 @@ module axi_protocol_assertions #(
                     $display("[%0t ns] [%s ASSERTION ERROR] ARADDR changed while ARVALID was asserted without ARREADY!", $time, NAME);
                     ar_stability_err++;
                 end
+                assert (arprot === prev_arprot) else begin
+                    $display("[%0t ns] [%s ASSERTION ERROR] ARPROT changed while ARVALID was asserted without ARREADY!", $time, NAME);
+                    ar_stability_err++;
+                end
             end
 
             // -----------------------------------------------------------------
@@ -170,15 +196,15 @@ module axi_protocol_assertions #(
             // 6. Response Code Validity (Must not be reserved 2'b01 EXOKAY)
             // -----------------------------------------------------------------
             if (rvalid && rready) begin
-                assert (rresp !== 2'b01) else begin
-                    $display("[%0t ns] [%s ASSERTION ERROR] Unsupported EXOKAY read response observed!", $time, NAME);
+                assert (!$isunknown(rresp) && rresp !== 2'b01) else begin
+                    $display("[%0t ns] [%s ASSERTION ERROR] Invalid or X RRESP=0x%0h observed!", $time, NAME, rresp);
                     resp_invalid_err++;
                 end
             end
 
             if (bvalid && bready) begin
-                assert (bresp !== 2'b01) else begin
-                    $display("[%0t ns] [%s ASSERTION ERROR] Unsupported EXOKAY write response observed!", $time, NAME);
+                assert (!$isunknown(bresp) && bresp !== 2'b01) else begin
+                    $display("[%0t ns] [%s ASSERTION ERROR] Invalid or X BRESP=0x%0h observed!", $time, NAME, bresp);
                     resp_invalid_err++;
                 end
             end
@@ -212,7 +238,8 @@ module axi_protocol_assertions #(
 
     function int get_total_assertion_errors();
         return (aw_stability_err + w_stability_err + ar_stability_err +
-                r_stability_err + b_stability_err + resp_invalid_err);
+                r_stability_err + b_stability_err + resp_invalid_err +
+                reset_err + x_check_err);
     endfunction
 
 endmodule: axi_protocol_assertions

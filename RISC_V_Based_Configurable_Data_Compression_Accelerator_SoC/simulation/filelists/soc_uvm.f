@@ -1,1 +1,1 @@
-../../verification/uvm/filelists/soc_uvm.f
+-f ../../verification/uvm/filelists/soc_uvm.f

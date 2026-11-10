@@ -3,10 +3,10 @@
 // =============================================================================
 // Verifies:
 // 1. Reset quiescence (no valid or IRQ signals during active-high reset)
-// 2. Mutual exclusivity of DONE and ERROR in status register
-// 3. Configuration register bounds checking
-// 4. AXI4-Lite slave response protocol compliance
-// 5. Output stability during slave stalls
+// 2. Mutual exclusivity of BUSY and DONE in status register
+// 3. Informational logging when invalid input lengths are driven (negative testing)
+// 4. AXI4-Lite slave response protocol compliance & IRQ known value (non-X/Z)
+// 5. AW, W, AR, R, B channel valid/payload stability during stalls
 // =============================================================================
 
 `timescale 1ns/1ps
@@ -51,6 +51,19 @@ module rle_protocol_assertions #(
     reg [31:0] last_write_addr = 32'hFFFF_FFFF;
 
     // Previous states for stability
+    reg        prev_awvalid = 1'b0;
+    reg        prev_awready = 1'b0;
+    reg [31:0] prev_awaddr  = 32'h0;
+
+    reg        prev_wvalid  = 1'b0;
+    reg        prev_wready  = 1'b0;
+    reg [31:0] prev_wdata   = 32'h0;
+    reg [3:0]  prev_wstrb   = 4'h0;
+
+    reg        prev_arvalid = 1'b0;
+    reg        prev_arready = 1'b0;
+    reg [31:0] prev_araddr  = 32'h0;
+
     reg        prev_rvalid = 1'b0;
     reg        prev_rready = 1'b0;
     reg [31:0] prev_rdata  = 32'h0;
@@ -60,15 +73,22 @@ module rle_protocol_assertions #(
     reg        prev_bready = 1'b0;
     reg [1:0]  prev_bresp  = 2'b0;
 
-    // Error counters
+    // Error & warning counters
     int reset_err_count     = 0;
     int mutex_err_count     = 0;
-    int config_err_count    = 0;
+    int config_err_count    = 0; // Kept for API compatibility; negative tests do not count as errors
+    int config_warn_count   = 0;
     int resp_err_count      = 0;
     int stability_err_count = 0;
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
+            prev_awvalid    <= 1'b0;
+            prev_awready    <= 1'b0;
+            prev_wvalid     <= 1'b0;
+            prev_wready     <= 1'b0;
+            prev_arvalid    <= 1'b0;
+            prev_arready    <= 1'b0;
             prev_rvalid     <= 1'b0;
             prev_rready     <= 1'b0;
             prev_bvalid     <= 1'b0;
@@ -92,6 +112,11 @@ module rle_protocol_assertions #(
                 end
             end
         end else begin
+            assert (!$isunknown({s_axi_bvalid, s_axi_rvalid, irq})) else begin
+                $display("[%0t ns] [%s ERROR] Unknown X/Z on s_axi_bvalid/s_axi_rvalid/irq!", $time, NAME);
+                resp_err_count++;
+            end
+
             // Track write addresses
             if (s_axi_awvalid && s_axi_awready) begin
                 last_write_addr <= s_axi_awaddr;
@@ -102,7 +127,7 @@ module rle_protocol_assertions #(
                 last_read_addr <= s_axi_araddr;
             end
 
-            // 2. Mutual exclusivity of DONE and ERROR in status register (Address offset 0x004)
+            // 2. Mutual exclusivity of BUSY and DONE in status register (Address offset 0x004)
             if (s_axi_rvalid && s_axi_rready) begin
                 logic [31:0] active_raddr;
                 active_raddr = (s_axi_arvalid && s_axi_arready) ? s_axi_araddr : last_read_addr;
@@ -126,17 +151,17 @@ module rle_protocol_assertions #(
                 end
             end
 
-            // 3. Configuration bounds check
+            // 3. Configuration bounds check (informational only; intentional negative stimulus is legal over AXI4-Lite)
             if (s_axi_wvalid && s_axi_wready) begin
                 logic [31:0] active_waddr;
                 active_waddr = (s_axi_awvalid && s_axi_awready) ? s_axi_awaddr : last_write_addr;
 
                 // Input Length Register at offset 0x008
                 if (active_waddr[7:0] == 8'h08) begin
-                    assert (s_axi_wdata <= MAX_BUFFER_DEPTH) else begin
-                        $display("[%0t ns] [%s WARNING] Configured input length %0d exceeds MAX_BUFFER_DEPTH %0d",
+                    if (s_axi_wdata == 32'd0 || s_axi_wdata > MAX_BUFFER_DEPTH) begin
+                        $display("[%0t ns] [%s INFO] Out-of-range input length %0d observed (MAX_BUFFER_DEPTH=%0d)",
                                  $time, NAME, s_axi_wdata, MAX_BUFFER_DEPTH);
-                        config_err_count++;
+                        config_warn_count++;
                     end
                 end
             end
@@ -150,7 +175,28 @@ module rle_protocol_assertions #(
                 last_write_addr <= 32'hFFFF_FFFF;
             end
 
-            // 5. Slave output stability
+            // 5. Master & slave channel stability during stalls
+            if (prev_awvalid && !prev_awready) begin
+                assert (s_axi_awvalid == 1'b1 && s_axi_awaddr === prev_awaddr) else begin
+                    $display("[%0t ns] [%s ERROR] AWVALID/AWADDR unstable before AWREADY!", $time, NAME);
+                    stability_err_count++;
+                end
+            end
+
+            if (prev_wvalid && !prev_wready) begin
+                assert (s_axi_wvalid == 1'b1 && s_axi_wdata === prev_wdata && s_axi_wstrb === prev_wstrb) else begin
+                    $display("[%0t ns] [%s ERROR] WVALID/WDATA/WSTRB unstable before WREADY!", $time, NAME);
+                    stability_err_count++;
+                end
+            end
+
+            if (prev_arvalid && !prev_arready) begin
+                assert (s_axi_arvalid == 1'b1 && s_axi_araddr === prev_araddr) else begin
+                    $display("[%0t ns] [%s ERROR] ARVALID/ARADDR unstable before ARREADY!", $time, NAME);
+                    stability_err_count++;
+                end
+            end
+
             if (prev_rvalid && !prev_rready) begin
                 assert (s_axi_rvalid == 1'b1) else begin
                     $display("[%0t ns] [%s ERROR] RVALID dropped before master ready!", $time, NAME);
@@ -174,13 +220,23 @@ module rle_protocol_assertions #(
             end
 
             // Latch history
-            prev_rvalid <= s_axi_rvalid;
-            prev_rready <= s_axi_rready;
-            prev_rdata  <= s_axi_rdata;
-            prev_rresp  <= s_axi_rresp;
-            prev_bvalid <= s_axi_bvalid;
-            prev_bready <= s_axi_bready;
-            prev_bresp  <= s_axi_bresp;
+            prev_awvalid <= s_axi_awvalid;
+            prev_awready <= s_axi_awready;
+            prev_awaddr  <= s_axi_awaddr;
+            prev_wvalid  <= s_axi_wvalid;
+            prev_wready  <= s_axi_wready;
+            prev_wdata   <= s_axi_wdata;
+            prev_wstrb   <= s_axi_wstrb;
+            prev_arvalid <= s_axi_arvalid;
+            prev_arready <= s_axi_arready;
+            prev_araddr  <= s_axi_araddr;
+            prev_rvalid  <= s_axi_rvalid;
+            prev_rready  <= s_axi_rready;
+            prev_rdata   <= s_axi_rdata;
+            prev_rresp   <= s_axi_rresp;
+            prev_bvalid  <= s_axi_bvalid;
+            prev_bready  <= s_axi_bready;
+            prev_bresp   <= s_axi_bresp;
         end
     end
 

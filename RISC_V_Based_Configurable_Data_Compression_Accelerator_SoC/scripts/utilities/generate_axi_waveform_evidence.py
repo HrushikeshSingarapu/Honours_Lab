@@ -26,21 +26,21 @@ def find_vcd():
     return "simulation/waveforms/soc_uvm.vcd"
 
 VCD_PATH = find_vcd()
-ARTIFACT_DIR = "/home/student/.gemini/antigravity/brain/2dc79917-5827-4c6c-b659-3ac7f1de3c19"
+ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", "")
 TB_DIR = os.path.dirname(VCD_PATH) if os.path.exists(VCD_PATH) else "simulation/waveforms"
 
 def parse_vcd_axi(vcd_path):
     # Time window: 3,750,000 ps to 4,700,000 ps (3.75 us to 4.70 us)
     # Covering:
-    # 1. 3795 ns: LCR write (0x1000_000C = 0x03)
-    # 2. 3945 ns: LSR read poll (0x1000_0014 -> 0x60)
-    # 3. 4205 ns: THR write 'H' (0x1000_0000 = 0x48)
-    # 4. 4355 ns: LSR read poll (0x1000_0014 -> 0x60)
-    # 5. 4605 ns: THR write 'I' (0x1000_0000 = 0x49)
-    
+    # 1. 3795 ns: LCR write (0x0003_000C = 0x03)
+    # 2. 3945 ns: LSR read poll (0x0003_0014 -> 0x60)
+    # 3. 4205 ns: THR write 'H' (0x0003_0000 = 0x48)
+    # 4. 4355 ns: LSR read poll (0x0003_0014 -> 0x60)
+    # 5. 4605 ns: THR write 'I' (0x0003_0000 = 0x49)
+
     t_start = 3_750_000
     t_end   = 4_700_000
-    
+
     # Symbols from VCD header:
     # tb_soc_top.clk: +
     # tb_soc_top.tb_uvm_vif_registered_s01: )
@@ -66,7 +66,7 @@ def parse_vcd_axi(vcd_path):
     # axi_m02_vif.tb_marker_aw_handshake: "ri
     #
     # uart_tx: .
-    
+
     sigs = {
         'vif_reg_s01': [')'],
         's01_awaddr':  ['"bO'],
@@ -89,10 +89,10 @@ def parse_vcd_axi(vcd_path):
         'm02_aw_hs':   ['"ri'],
         'uart_tx':     ['.']
     }
-    
+
     # Events dictionary: sig_name -> list of (time, val)
     events = {k: [] for k in sigs}
-    
+
     current_time = 0
     with open(vcd_path, 'r') as f:
         for line in f:
@@ -115,7 +115,7 @@ def parse_vcd_axi(vcd_path):
                 for k, sym_list in sigs.items():
                     if sym in sym_list:
                         events[k].append((current_time, val))
-                        
+
     return events, t_start, t_end
 
 def create_svg(events, t_start, t_end, out_path):
@@ -189,7 +189,7 @@ def create_svg(events, t_start, t_end, out_path):
     # 1. LCR Write: 3795 ns - 3845 ns
     x_lcr = t_to_x(3_815_000)
     svg.append(f'<rect x="{t_to_x(3_790_000):.1f}" y="{margin_top - 10}" width="{t_to_x(3_850_000)-t_to_x(3_790_000):.1f}" height="{total_height - margin_top - 40}" fill="#ffeb3b" opacity="0.08"/>')
-    svg.append(f'<text x="{x_lcr:.1f}" y="{margin_top - 5}" class="annotation" text-anchor="middle">UART_LCR (0x1000_000C=0x03)</text>')
+    svg.append(f'<text x="{x_lcr:.1f}" y="{margin_top - 5}" class="annotation" text-anchor="middle">UART_LCR (0x0003_000C=0x03)</text>')
 
     # 2. THR 'H' Write: 4205 ns - 4255 ns
     x_thrh = t_to_x(4_230_000)
@@ -228,10 +228,10 @@ def create_svg(events, t_start, t_end, out_path):
             cur_v = val_at_start
             cur_t = t_start
             path_d = []
-            
+
             y_high = y_base - h
             y_low = y_base
-            
+
             cur_y = y_high if cur_v in ('1', 1) else y_low
             path_d.append(f"M {t_to_x(cur_t):.1f} {cur_y:.1f}")
 
@@ -264,7 +264,7 @@ def create_svg(events, t_start, t_end, out_path):
                     continue
                 x1 = t_to_x(t1)
                 x2 = t_to_x(t2)
-                
+
                 # Format bus string
                 try:
                     num_val = int(val, 2)
@@ -277,7 +277,7 @@ def create_svg(events, t_start, t_end, out_path):
 
                 # Crossover bevel
                 bevel = min(6.0, (x2 - x1) / 2)
-                
+
                 # Bus polygon
                 pts = f"{x1:.1f},{y_mid:.1f} {x1+bevel:.1f},{y_top:.1f} {x2-bevel:.1f},{y_top:.1f} {x2:.1f},{y_mid:.1f} {x2-bevel:.1f},{y_bot:.1f} {x1+bevel:.1f},{y_bot:.1f}"
                 svg.append(f'<polygon points="{pts}" fill="#1e293b" stroke="{color}" stroke-width="1.5"/>')
@@ -309,12 +309,12 @@ def render_png(svg_path, png_path, width=1600):
     # Simple rasterizer for verification evidence
     height = 920
     raw_data = bytearray([18, 24, 32, 255] * (width * height))
-    
+
     # Save uncompressed PNG
     def write_png(buf, w, h, fname):
         def chunk(tag, data):
             return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
-        
+
         ihdr = struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)
         lines = []
         for y in range(h):
@@ -335,20 +335,19 @@ def main():
 
     print(f"Parsing {VCD_PATH} for AXI virtual interface demonstration...")
     events, t_start, t_end = parse_vcd_axi(VCD_PATH)
-    
+
     out_svg_tb = os.path.join(TB_DIR, "axi_vif_connectivity_waveform.svg")
     out_png_tb = os.path.join(TB_DIR, "axi_vif_connectivity_waveform.png")
-    out_svg_art = os.path.join(ARTIFACT_DIR, "axi_vif_connectivity_waveform.svg")
-    out_png_art = os.path.join(ARTIFACT_DIR, "axi_vif_connectivity_waveform.png")
-
     create_svg(events, t_start, t_end, out_svg_tb)
     render_png(out_svg_tb, out_png_tb)
 
-    # Copy to artifact dir
-    import shutil
-    shutil.copyfile(out_svg_tb, out_svg_art)
-    shutil.copyfile(out_png_tb, out_png_art)
-    print(f"[OK] Copied waveforms to artifact directory: {ARTIFACT_DIR}")
+    if ARTIFACT_DIR and os.path.isdir(ARTIFACT_DIR):
+        import shutil
+        out_svg_art = os.path.join(ARTIFACT_DIR, "axi_vif_connectivity_waveform.svg")
+        out_png_art = os.path.join(ARTIFACT_DIR, "axi_vif_connectivity_waveform.png")
+        shutil.copyfile(out_svg_tb, out_svg_art)
+        shutil.copyfile(out_png_tb, out_png_art)
+        print(f"[OK] Copied waveforms to artifact directory: {ARTIFACT_DIR}")
 
 if __name__ == "__main__":
     main()

@@ -25,7 +25,7 @@ def find_vcd():
     return "simulation/waveforms/soc_uvm.vcd"
 
 VCD_PATH = find_vcd()
-ARTIFACT_DIR = "/home/student/.gemini/antigravity/brain/2dc79917-5827-4c6c-b659-3ac7f1de3c19"
+ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", "")
 TB_DIR = os.path.dirname(VCD_PATH) if os.path.exists(VCD_PATH) else "simulation/waveforms"
 
 def parse_vcd_uart(vcd_path):
@@ -33,7 +33,7 @@ def parse_vcd_uart(vcd_path):
     # # = clk, * = rst_n, . = uart_tx, - = uart_rx
     uart_tx_events = [(0, 1)] # start at 1
     rst_n_events = [(0, 0)]
-    
+
     current_time = 0
     with open(vcd_path, 'r') as f:
         for line in f:
@@ -54,7 +54,7 @@ def parse_vcd_uart(vcd_path):
                     val = int(val_str)
                     if not rst_n_events or rst_n_events[-1][1] != val:
                         rst_n_events.append((current_time, val))
-                        
+
     return uart_tx_events, rst_n_events
 
 def create_svg(uart_tx_events, rst_n_events, out_path):
@@ -281,7 +281,7 @@ def create_png_from_svg_raster(uart_tx_events, out_path):
 
     png_header = b'\x89PNG\r\n\x1a\n'
     ihdr = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
-    
+
     with open(out_path, 'wb') as f:
         f.write(png_header)
         f.write(chunk(b'IHDR', ihdr))
@@ -298,17 +298,16 @@ def main():
     uart_events, rst_events = parse_vcd_uart(VCD_PATH)
     print(f"Extracted {len(uart_events)} uart_tx events and {len(rst_events)} rst_n events.")
 
-    # Generate SVGs
-    svg_artifact = os.path.join(ARTIFACT_DIR, "uart_tx_waveform.svg")
+    # Generate SVGs and PNGs into simulation/waveforms
+    os.makedirs(TB_DIR, exist_ok=True)
     svg_tb = os.path.join(TB_DIR, "uart_tx_waveform.svg")
-    create_svg(uart_events, rst_events, svg_artifact)
-    create_svg(uart_events, rst_events, svg_tb)
-
-    # Generate PNGs
-    png_artifact = os.path.join(ARTIFACT_DIR, "uart_tx_waveform.png")
     png_tb = os.path.join(TB_DIR, "uart_tx_waveform.png")
-    create_png_from_svg_raster(uart_events, png_artifact)
+    create_svg(uart_events, rst_events, svg_tb)
     create_png_from_svg_raster(uart_events, png_tb)
+
+    if ARTIFACT_DIR and os.path.isdir(ARTIFACT_DIR):
+        create_svg(uart_events, rst_events, os.path.join(ARTIFACT_DIR, "uart_tx_waveform.svg"))
+        create_png_from_svg_raster(uart_events, os.path.join(ARTIFACT_DIR, "uart_tx_waveform.png"))
 
     print("Waveform visualization generation complete!")
 

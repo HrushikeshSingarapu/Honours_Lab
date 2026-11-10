@@ -234,12 +234,12 @@ module tb_dma_uvm;
     // =========================================================================
     // 3. Simulated DMEM and Crossbar Router
     // =========================================================================
-    logic [7:0] dmem [0:262143]; // 256 KB simulated memory (0x0004_0000 - 0x0007_FFFF)
+    logic [7:0] dmem [0:131071]; // 128 KB simulated memory (0x0001_0000 - 0x0002_FFFF)
 
-    wire is_rle_wr  = (axi_if.m_axi_awaddr >= 32'h1001_0000 && axi_if.m_axi_awaddr <= 32'h1001_0FFF);
-    wire is_dmem_wr = (axi_if.m_axi_awaddr >= 32'h0004_0000 && axi_if.m_axi_awaddr <= 32'h0007_FFFF);
-    wire is_rle_rd  = (axi_if.m_axi_araddr >= 32'h1001_0000 && axi_if.m_axi_araddr <= 32'h1001_0FFF);
-    wire is_dmem_rd = (axi_if.m_axi_araddr >= 32'h0004_0000 && axi_if.m_axi_araddr <= 32'h0007_FFFF);
+    wire is_rle_wr  = (axi_if.m_axi_awaddr >= 32'h000D_0000 && axi_if.m_axi_awaddr <= 32'h000D_0FFF);
+    wire is_dmem_wr = (axi_if.m_axi_awaddr >= 32'h0001_0000 && axi_if.m_axi_awaddr <= 32'h0002_FFFF);
+    wire is_rle_rd  = (axi_if.m_axi_araddr >= 32'h000D_0000 && axi_if.m_axi_araddr <= 32'h000D_0FFF);
+    wire is_dmem_rd = (axi_if.m_axi_araddr >= 32'h0001_0000 && axi_if.m_axi_araddr <= 32'h0002_FFFF);
 
     logic dmem_awready, dmem_wready, dmem_bvalid, dmem_arready, dmem_rvalid, dmem_rlast;
     logic [31:0] dmem_rdata;
@@ -302,7 +302,7 @@ module tb_dma_uvm;
                     // 3. Now accept write address on AW channel
                     dmem_awready <= 1'b1;
                     @(posedge clk);
-                    waddr        = axi_if.m_axi_awaddr - 32'h0004_0000;
+                    waddr        = axi_if.m_axi_awaddr - 32'h0001_0000;
                     dmem_bid     <= axi_if.m_axi_awid;
                     dmem_awready <= 1'b0;
 
@@ -321,7 +321,7 @@ module tb_dma_uvm;
                     dmem_awready <= 1'b1;
                     dmem_wready  <= 1'b1;
                     @(posedge clk);
-                    waddr        = axi_if.m_axi_awaddr - 32'h0004_0000;
+                    waddr        = axi_if.m_axi_awaddr - 32'h0001_0000;
                     dmem_bid     <= axi_if.m_axi_awid;
                     dmem_awready <= 1'b0;
 
@@ -356,7 +356,7 @@ module tb_dma_uvm;
                 int b;
                 dmem_arready <= 1'b1;
                 @(posedge clk);
-                raddr = axi_if.m_axi_araddr - 32'h0004_0000;
+                raddr = axi_if.m_axi_araddr - 32'h0001_0000;
                 rlen  = axi_if.m_axi_arlen;
                 rid   = axi_if.m_axi_arid;
                 dmem_arready <= 1'b0;
@@ -379,15 +379,15 @@ module tb_dma_uvm;
     // Initialization & UVM invocation
     initial begin
         rst_n = 1'b0;
-        // Populate test patterns into simulated DMEM (256 KB)
-        for (int i = 0; i < 262144; i++) begin
+        // Populate test patterns into simulated DMEM (128 KB)
+        for (int i = 0; i < 131072; i++) begin
             dmem[i] = 8'hAA; // Repeating 0xAA for compression test
         end
-        // Decompression tokens at 0x0005_0000: [10, 0x41], [6, 0x42]
-        dmem[32'h0005_0000 - 32'h0004_0000 + 0] = 8'd10;
-        dmem[32'h0005_0000 - 32'h0004_0000 + 1] = 8'h41;
-        dmem[32'h0005_0000 - 32'h0004_0000 + 2] = 8'd6;
-        dmem[32'h0005_0000 - 32'h0004_0000 + 3] = 8'h42;
+        // Decompression tokens at 0x0002_0000: [10, 0x41], [6, 0x42]
+        dmem[32'h0002_0000 - 32'h0001_0000 + 0] = 8'd10;
+        dmem[32'h0002_0000 - 32'h0001_0000 + 1] = 8'h41;
+        dmem[32'h0002_0000 - 32'h0001_0000 + 2] = 8'd6;
+        dmem[32'h0002_0000 - 32'h0001_0000 + 3] = 8'h42;
 
         repeat (15) @(posedge clk);
         #1;
@@ -413,4 +413,3 @@ module tb_dma_uvm;
     end
 
 endmodule
-

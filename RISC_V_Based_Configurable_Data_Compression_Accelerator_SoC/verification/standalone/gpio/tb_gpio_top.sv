@@ -599,6 +599,56 @@ module tb_gpio_top;
         $display("  PASS: Unaligned read (addr=0x01) returns SLVERR");
 
         // ---------------------------------------------------------------------
+        // TEST 9: Partial WSTRB, Simultaneous Multi-Pin IRQ W1C & Dynamic Reset
+        // ---------------------------------------------------------------------
+        $display("\n[TEST 9] Partial WSTRB, Multi-Pin IRQ W1C & Dynamic Reset Recovery");
+        axi_write(REG_DIR,      32'hFFFF_FFFF, 4'b1111, RESP_OKAY);
+        axi_write(REG_DATA_OUT, 32'h1122_3344, 4'b1111, RESP_OKAY);
+        // Modify only byte 1 (4'b0010) and byte 3 (4'b1000) via partial WSTRB
+        axi_write(REG_DATA_OUT, 32'hAA00_BB00, 4'b1010, RESP_OKAY);
+        check_reg(REG_DATA_OUT, 32'hAA22_BB44, 32'hFFFF_FFFF, "Partial WSTRB preserves untouched DATA_OUT byte lanes");
+        test_count = test_count + 1;
+        if (gpio_o === 32'hAA22_BB44) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL: gpio_o=0x%08x != 0xAA22BB44", gpio_o); end
+
+        // Multi-pin rising-edge IRQs on bits 1 & 3 (set DIR[3:0]=0 for input pins)
+        axi_write(REG_DIR,      32'h0000_0000, 4'b1111, RESP_OKAY);
+        axi_write(REG_IRQ_STAT, 32'hFFFF_FFFF, 4'b1111, RESP_OKAY);
+        axi_write(REG_IRQ_TYPE, 32'h0000_000F, 4'b0001, RESP_OKAY); // Edge
+        axi_write(REG_IRQ_POL,  32'h0000_000F, 4'b0001, RESP_OKAY); // Rising
+        axi_write(REG_IRQ_EN,   32'h0000_000A, 4'b0001, RESP_OKAY); // Enable bits 1 & 3
+        gpio_i <= 32'h0000_0000;
+        repeat(4) @(posedge clk);
+        gpio_i <= 32'h0000_000A; // Simultaneous rising edges on bit 1 & bit 3
+        repeat(5) @(posedge clk);
+        check_reg(REG_IRQ_STAT, 32'h0000_000A, 32'h0000_000A, "Simultaneous multi-pin rising IRQ_STAT == 0xA");
+        test_count = test_count + 1;
+        if (gpio_irq === 1'b1) pass_count = pass_count + 1; else begin fail_count = fail_count + 1; $display("  FAIL: gpio_irq not 1"); end
+
+        // Partial W1C clear only bit 1 -> bit 3 must keep gpio_irq == 1
+        axi_write(REG_IRQ_STAT, 32'h0000_0002, 4'b0001, RESP_OKAY);
+        repeat(2) @(posedge clk);
+        test_count = test_count + 1;
+        if (gpio_irq === 1'b1) pass_count = pass_count + 1; else begin fail_count = fail_count + 1; $display("  FAIL: Partial W1C cleared bit 3 prematurely"); end
+
+        // Clear bit 3 -> gpio_irq == 0
+        axi_write(REG_IRQ_STAT, 32'h0000_0008, 4'b0001, RESP_OKAY);
+        repeat(2) @(posedge clk);
+        test_count = test_count + 1;
+        if (gpio_irq === 1'b0) pass_count = pass_count + 1; else begin fail_count = fail_count + 1; $display("  FAIL: gpio_irq remained high after clearing all bits"); end
+
+        // Dynamic reset clears active DIR/OUT/IRQ
+        axi_write(REG_DIR,      32'h0000_FFFF, 4'b1111, RESP_OKAY);
+        axi_write(REG_DATA_OUT, 32'h0000_5555, 4'b1111, RESP_OKAY);
+        rst_n <= 1'b0;
+        repeat(4) @(posedge clk);
+        test_count = test_count + 1;
+        if (gpio_oe === 32'h0 && gpio_o === 32'h0 && gpio_irq === 1'b0) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL: Dynamic reset failed quiescence"); end
+        rst_n <= 1'b1;
+        repeat(2) @(posedge clk);
+
+        // ---------------------------------------------------------------------
         // Simulation Summary
         // ---------------------------------------------------------------------
         repeat(10) @(posedge clk);

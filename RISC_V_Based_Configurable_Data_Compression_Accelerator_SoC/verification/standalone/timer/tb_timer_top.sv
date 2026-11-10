@@ -609,6 +609,48 @@ module tb_timer_top;
         $display("  PASS: Unaligned read (addr=0x02) returns SLVERR");
 
         // ---------------------------------------------------------------------
+        // TEST 9: 64-Bit MTIME Rollover Carry, Partial WSTRB & Dynamic Reset
+        // ---------------------------------------------------------------------
+        $display("\n[TEST 9] 64-Bit MTIME Rollover Carry, WSTRB & Dynamic Reset Recovery");
+        axi_write(REG_TIMER_CTRL,    32'h0000_0000, 4'b1111, RESP_OKAY); // Stop timer
+        axi_write(REG_TIMER_STATUS,  32'h0000_0001, 4'b0001, RESP_OKAY); // Clear pending W1C
+        axi_write(REG_MTIMECMP_HIGH, 32'hFFFF_FFFF, 4'b1111, RESP_OKAY);
+        axi_write(REG_MTIME_HIGH,    32'h0000_0000, 4'b1111, RESP_OKAY);
+        axi_write(REG_MTIME_LOW,     32'hFFFF_FFF8, 4'b1111, RESP_OKAY); // 8 ticks from 32-bit wrap
+        // Prescaler=0, EN=1 -> ticks every clock
+        axi_write(REG_TIMER_CTRL,    32'h0000_0001, 4'b1111, RESP_OKAY);
+        repeat(15) @(posedge clk);
+        axi_read(REG_MTIME_HIGH, rd_val, RESP_OKAY);
+        test_count = test_count + 1;
+        if (rd_val === 32'h0000_0001) begin
+            pass_count = pass_count + 1;
+            $display("  PASS: 64-bit MTIME_LOW rollover incremented MTIME_HIGH to 1");
+        end else begin
+            fail_count = fail_count + 1;
+            $display("  FAIL: MTIME_HIGH expected 1 after rollover, got 0x%08x", rd_val);
+        end
+
+        // Partial WSTRB write to MTIMECMP_LOW + dynamic reset while IRQ=1
+        axi_write(REG_MTIMECMP_LOW,  32'h0000_0000, 4'b1111, RESP_OKAY);
+        axi_write(REG_MTIMECMP_LOW,  32'h1234_5678, 4'b0101, RESP_OKAY); // Bytes 0 & 2 only -> 0x0034_0078
+        check_reg(REG_MTIMECMP_LOW,  32'h0034_0078, 32'hFFFF_FFFF, "Partial WSTRB on MTIMECMP_LOW");
+        axi_write(REG_MTIMECMP_HIGH, 32'h0000_0000, 4'b1111, RESP_OKAY);
+        axi_write(REG_TIMER_CTRL,    32'h0000_0003, 4'b0001, RESP_OKAY); // Enable IRQ (MTIME > CMP)
+        repeat(3) @(posedge clk);
+        test_count = test_count + 1;
+        if (timer_irq === 1'b1) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL: Expected timer_irq=1 before dynamic reset"); end
+
+        rst_n <= 1'b0;
+        repeat(4) @(posedge clk);
+        test_count = test_count + 1;
+        if (timer_irq === 1'b0) pass_count = pass_count + 1;
+        else begin fail_count = fail_count + 1; $display("  FAIL: timer_irq did not clear on dynamic reset"); end
+        rst_n <= 1'b1;
+        repeat(2) @(posedge clk);
+        check_reg(REG_MTIME_HIGH, 32'h0000_0000, 32'hFFFF_FFFF, "Dynamic reset cleared MTIME_HIGH");
+
+        // ---------------------------------------------------------------------
         // Simulation Summary
         // ---------------------------------------------------------------------
         repeat(10) @(posedge clk);

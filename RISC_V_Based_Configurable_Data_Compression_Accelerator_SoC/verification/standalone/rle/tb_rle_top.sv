@@ -588,6 +588,44 @@ module tb_rle_top;
         check("IRQ_STATUS[1] still records error event when disabled", rd_val[1] == 1'b1);
 
         // ---------------------------------------------------------------------
+        // TEST GROUP 8: Zero-Length, Buffer Overflow (>512B), Isolation & Reset
+        // ---------------------------------------------------------------------
+        $display("\n--- TEST GROUP 8: Zero-Length, Overflow & Dynamic Reset Recovery ---");
+        // 8.1 Zero-length compress -> DONE=1, ERROR=0, OUTPUT_LENGTH=0
+        axi_write(REG_INPUT_LENGTH, 32'd0, 4'b1111, 0, 0, 0, wr_resp);
+        axi_write(REG_CONTROL, 32'h0000_0001, 4'b0001, 0, 0, 0, wr_resp);
+        wait_for_done(rd_val);
+        check("Zero-length compress finishes DONE=1, ERROR=0", rd_val[1] == 1'b1 && rd_val[2] == 1'b0);
+        axi_read(REG_OUTPUT_LENGTH, 0, rd_val, rd_resp);
+        check("Zero-length OUTPUT_LENGTH == 0", rd_val == 32'd0);
+
+        // 8.2 Compression output overflow (> BUFFER_DEPTH=512): 260 unique alternating bytes -> 520 > 512
+        axi_write(REG_INPUT_LENGTH, 32'd260, 4'b1111, 0, 0, 0, wr_resp);
+        for (i = 0; i < 65; i++) begin
+            axi_write(REG_INPUT_DATA,
+                      {byte'(i*4 + 3), byte'(i*4 + 2), byte'(i*4 + 1), byte'(i*4)},
+                      4'b1111, 0, 0, 0, wr_resp);
+        end
+        axi_write(REG_CONTROL, 32'h0000_0001, 4'b0001, 0, 0, 0, wr_resp);
+        wait_for_done(rd_val);
+        check("Compression overflow (>512B) asserts ERROR=1 & DONE=1", rd_val[2] == 1'b1 && rd_val[1] == 1'b1);
+
+        // 8.3 Dynamic reset while BUSY compressing
+        axi_write(REG_INPUT_LENGTH, 32'd64, 4'b1111, 0, 0, 0, wr_resp);
+        for (i = 0; i < 16; i++) begin
+            axi_write(REG_INPUT_DATA, 32'hA5A5_A5A5, 4'b1111, 0, 0, 0, wr_resp);
+        end
+        axi_write(REG_CONTROL, 32'h0000_0001, 4'b0001, 0, 0, 0, wr_resp);
+        repeat(3) @(posedge clk);
+        rst <= 1'b1;
+        repeat(4) @(posedge clk);
+        check("Dynamic reset clears irq immediately", irq == 1'b0);
+        rst <= 1'b0;
+        repeat(3) @(posedge clk);
+        axi_read(REG_STATUS, 0, rd_val, rd_resp);
+        check("Post-reset STATUS is idle (0x0)", rd_val == 32'd0);
+
+        // ---------------------------------------------------------------------
         // SUMMARY
         // ---------------------------------------------------------------------
         $display("\n========================================================");

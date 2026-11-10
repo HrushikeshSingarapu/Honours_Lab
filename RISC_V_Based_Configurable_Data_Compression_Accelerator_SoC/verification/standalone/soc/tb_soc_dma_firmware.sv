@@ -5,11 +5,11 @@
 //   Instantiates the complete VeeR EL2-based SoC (soc_core_top) including:
 //     - Real VeeR EL2 RISC-V Core executing C firmware from reset vector 0x8000_0000
 //     - Real AXI 4x8 Crossbar Interconnect
-//     - Autonomous DMA Controller IP (0x1001_1000)
-//     - Hardware Run-Length Encoding / Decoding Accelerator (0x1001_0000)
-//     - Hardware IEEE 802.3 CRC-32 Peripheral (0x1001_2000)
-//     - UART 16550 Console (0x1000_0000)
-//     - 256 KB Instruction SRAM (IMEM) and 256 KB Data SRAM (DMEM)
+//     - Autonomous DMA Controller IP (0x000B_0000)
+//     - Hardware Run-Length Encoding / Decoding Accelerator (0x000D_0000)
+//     - Hardware IEEE 802.3 CRC-32 Peripheral (0x000A_0000)
+//     - UART 16550 Console (0x0003_0000)
+//     - 64 KB Instruction SRAM (IMEM) and 128 KB Data SRAM (DMEM)
 //
 // Verification Methodology:
 //   1. Autonomous firmware running on VeeR CPU sets up test patterns in DMEM.
@@ -63,8 +63,8 @@ module tb_soc_dma_firmware;
     // DUT Instantiation: Complete VeeR EL2 SoC Subsystem
     // -------------------------------------------------------------------------
     soc_core_top #(
-        .IMEM_DEPTH(65536), // 256 KB
-        .DMEM_DEPTH(65536)  // 256 KB
+        .IMEM_DEPTH(16384), // 64 KB
+        .DMEM_DEPTH(32768)  // 128 KB
     ) u_dut (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -121,7 +121,7 @@ module tb_soc_dma_firmware;
                          $time, cycle_count, trace_rv_i_address_ip, trace_rv_i_ecause_ip, trace_rv_i_tval_ip);
             end
 
-            // Monitor CPU writes to UART THR (0x10000000) for console display
+            // Monitor CPU writes to UART THR (0x00030000) for console display
             if (u_dut.u_soc.m02_wvalid && u_dut.u_soc.m02_wready && (u_dut.u_soc.m02_awaddr[11:0] == 12'h000)) begin
                 $write("%c", u_dut.u_soc.m02_wdata[7:0]);
             end
@@ -247,7 +247,13 @@ module tb_soc_dma_firmware;
                     $fclose(fd);
                     $readmemh("../firmware/images/dma_test_word.hex", u_dut.u_soc.u_imem.mem);
                 end else begin
-                    $readmemh("../../firmware/images/dma_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    fd = $fopen("../../firmware/images/dma_test_word.hex", "r");
+                    if (fd != 0) begin
+                        $fclose(fd);
+                        $readmemh("../../firmware/images/dma_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    end else begin
+                        $readmemh("../../../firmware/images/dma_test_word.hex", u_dut.u_soc.u_imem.mem);
+                    end
                 end
             end
         end
@@ -293,9 +299,9 @@ module tb_soc_dma_firmware;
         $display("----------------------------------------------------------------");
 
         // Verify Pattern 4 final buffer contents in DMEM directly
-        // SRC_BUF is at word offset 64 (0x0004_0100)
-        // COMP_BUF is at word offset 192 (0x0004_0300)
-        // DECOMP_BUF is at word offset 320 (0x0004_0500)
+        // SRC_BUF is at word offset 64 (0x0001_0100)
+        // COMP_BUF is at word offset 192 (0x0001_0300)
+        // DECOMP_BUF is at word offset 320 (0x0001_0500)
         mem_match = 1'b1;
 
         // 1. Verify that Decompressed Buffer exactly matches Source Buffer

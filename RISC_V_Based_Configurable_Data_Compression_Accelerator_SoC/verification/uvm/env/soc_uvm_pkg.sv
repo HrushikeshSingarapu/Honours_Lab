@@ -18,8 +18,14 @@ package soc_uvm_pkg;
   `include "soc_coverage.sv"
   `include "soc_env.sv"
   `include "soc_smoke_seq.sv"
-  `include "soc_smoke_test.sv"
   `include "uart_echo_seq.sv"
+  `include "soc_gpio_irq_seq.sv"
+  `include "soc_warm_reset_seq.sv"
+  `include "soc_uart_echo_fast_seq.sv"
+  `include "soc_smoke_test.sv"
   `include "uart_echo_test.sv"
+  `include "soc_e2e_flow_test.sv"
+  `include "soc_reset_recovery_test.sv"
+  `include "soc_decerr_trap_test.sv"
 
 endpackage : soc_uvm_pkg

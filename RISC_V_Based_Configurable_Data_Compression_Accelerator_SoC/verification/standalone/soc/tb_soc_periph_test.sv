@@ -2,11 +2,11 @@
 // tb_soc_periph_test.sv — VeeR-Based SoC Peripheral Integration Testbench
 //
 // Exercises all integrated memory-mapped peripherals from the VeeR EL2 core:
-//   1. GPIO   (0x1000_2000): DIR, DATA_OUT, atomic SET_OUT, atomic CLR_OUT
-//   2. Timer  (0x1000_1000): MTIMECMP, TIMER_CTRL, MTIME counting verification
-//   3. UART   (0x1000_0000): UART_LCR, UART_LSR, UART_THR transmission ('H', 'I')
-//   4. CRC-32 (0x1001_2000): CRC_INIT, CRC_CTRL, CRC_DATA, CRC_STATUS, CRC_RESULT
-//   5. RLE    (0x1001_0000): REG_INPUT_LENGTH, REG_CONTROL mode, REG_STATUS
+//   1. GPIO   (0x0006_0000): DIR, DATA_OUT, atomic SET_OUT, atomic CLR_OUT
+//   2. Timer  (0x0005_0000): MTIMECMP, TIMER_CTRL, MTIME counting verification
+//   3. UART   (0x0003_0000): UART_LCR, UART_LSR, UART_THR transmission ('H', 'I')
+//   4. CRC-32 (0x000A_0000): CRC_INIT, CRC_CTRL, CRC_DATA, CRC_STATUS, CRC_RESULT
+//   5. RLE    (0x000D_0000): REG_INPUT_LENGTH, REG_CONTROL mode, REG_STATUS
 //
 // Verification Assertions:
 //   - Each peripheral reports success via a unique signature stored in DMEM:
@@ -54,8 +54,8 @@ module tb_soc_periph_test;
 
     // DUT instantiation
     soc_core_top #(
-        .IMEM_DEPTH(65536),
-        .DMEM_DEPTH(65536)
+        .IMEM_DEPTH(16384),
+        .DMEM_DEPTH(32768)
     ) u_dut (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -114,18 +114,21 @@ module tb_soc_periph_test;
                 retire_count <= retire_count + 1;
             end
 
-            // Monitor MMIO read/write transactions (Region 1: 0x1000_0000 - 0x1FFF_FFFF)
-            if (u_dut.lsu_axi_awvalid && u_dut.lsu_axi_awready && (u_dut.lsu_axi_awaddr[31:28] == 4'h1)) begin
+            // Monitor MMIO read/write transactions (Peripherals: 0x0003_0000 - 0x000D_FFFF)
+            if (u_dut.lsu_axi_awvalid && u_dut.lsu_axi_awready &&
+                (u_dut.lsu_axi_awaddr >= 32'h0003_0000 && u_dut.lsu_axi_awaddr <= 32'h000D_FFFF)) begin
                 $display("[%0t ns] [CYC %0d] MMIO WRITE REQ  : Addr=0x%08h, Size=%0d, Len=%0d",
                          $time, cycle_count, u_dut.lsu_axi_awaddr, u_dut.lsu_axi_awsize, u_dut.lsu_axi_awlen);
             end
 
-            if (u_dut.lsu_axi_wvalid && u_dut.lsu_axi_wready && (u_dut.lsu_axi_awaddr[31:28] == 4'h1)) begin
+            if (u_dut.lsu_axi_wvalid && u_dut.lsu_axi_wready &&
+                (u_dut.lsu_axi_awaddr >= 32'h0003_0000 && u_dut.lsu_axi_awaddr <= 32'h000D_FFFF)) begin
                 $display("[%0t ns] [CYC %0d] MMIO WRITE DATA : Data=0x%016h, Strb=0x%02h",
                          $time, cycle_count, u_dut.lsu_axi_wdata, u_dut.lsu_axi_wstrb);
             end
 
-            if (u_dut.lsu_axi_arvalid && u_dut.lsu_axi_arready && (u_dut.lsu_axi_araddr[31:28] == 4'h1)) begin
+            if (u_dut.lsu_axi_arvalid && u_dut.lsu_axi_arready &&
+                (u_dut.lsu_axi_araddr >= 32'h0003_0000 && u_dut.lsu_axi_araddr <= 32'h000D_FFFF)) begin
                 $display("[%0t ns] [CYC %0d] MMIO READ REQ   : Addr=0x%08h, Size=%0d, Len=%0d",
                          $time, cycle_count, u_dut.lsu_axi_araddr, u_dut.lsu_axi_arsize, u_dut.lsu_axi_arlen);
             end

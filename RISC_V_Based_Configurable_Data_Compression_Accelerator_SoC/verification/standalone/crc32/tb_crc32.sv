@@ -616,6 +616,74 @@ module tb_crc32;
         check_reg(REG_CRC_RESULT, 32'h2905_8C73, 32'hFFFF_FFFF, "256-byte stream CRC-32 (Golden 0x29058C73)");
 
         // ---------------------------------------------------------------------
+        // TEST 9: Empty Message, All-0/All-1, PRNG Mixed WSTRB, Re-seed & Dynamic Reset
+        // ---------------------------------------------------------------------
+        $display("\n[TEST 9] Software Bit-Exact Reference Model, Empty, All-0/All-FF & Reset Recovery");
+        begin : test_9_ref
+            automatic reg [31:0] sw_crc;
+            automatic reg [31:0] lfsr;
+            automatic reg [31:0] wdata;
+            automatic reg [3:0]  wstrb;
+            automatic int        exp_cnt;
+
+            // Helper bit-exact IEEE 802.3 CRC-32 step on 1 byte (standard 0xEDB88320)
+            // Initial internal reg is 0xFFFFFFFF; final result = ~sw_crc
+            // Subtest 9a: Empty message (CTRL=1 only) -> RESULT == 0x00000000, byte_cnt == 0
+            axi_write(REG_CRC_CTRL, 32'h0000_0001, 4'b0001, RESP_OKAY);
+            check_reg(REG_CRC_STATUS, 32'h0000_0000, 32'h0000_FFFF, "Empty message byte_count == 0");
+            check_reg(REG_CRC_RESULT, 32'h0000_0000, 32'hFFFF_FFFF, "Empty message CRC-32 == 0x00000000");
+
+            // Subtest 9b: Deterministic PRNG 25 transactions with mixed WSTRB (1,2,3,4 bytes)
+            sw_crc  = 32'hFFFF_FFFF;
+            lfsr    = 32'hCAFE_1234;
+            exp_cnt = 0;
+            axi_write(REG_CRC_CTRL, 32'h0000_0001, 4'b0001, RESP_OKAY);
+
+            for (int t = 0; t < 25; t++) begin
+                lfsr  = {lfsr[30:0], lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0]};
+                wdata = lfsr;
+                case (t % 4)
+                    0: wstrb = 4'b0001;
+                    1: wstrb = 4'b0011;
+                    2: wstrb = 4'b0111;
+                    3: wstrb = 4'b1111;
+                endcase
+                if (t == 0) begin wdata = 32'h0000_0000; wstrb = 4'b1111; end // All-0s
+                if (t == 1) begin wdata = 32'hFFFF_FFFF; wstrb = 4'b1111; end // All-1s
+
+                axi_write(REG_CRC_DATA, wdata, wstrb, RESP_OKAY);
+                for (int b = 0; b < 4; b++) begin
+                    if (wstrb[b]) begin
+                        automatic reg [7:0] cur_b = wdata[b*8 +: 8];
+                        sw_crc = sw_crc ^ {24'h0, cur_b};
+                        for (int k = 0; k < 8; k++) begin
+                            if (sw_crc[0]) sw_crc = (sw_crc >> 1) ^ 32'hEDB8_8320;
+                            else           sw_crc = (sw_crc >> 1);
+                        end
+                        exp_cnt++;
+                    end
+                end
+            end
+            check_reg(REG_CRC_STATUS, exp_cnt[31:0], 32'h0000_FFFF, "PRNG mixed-WSTRB byte_count exact match");
+            check_reg(REG_CRC_RESULT, ~sw_crc,        32'hFFFF_FFFF, "PRNG mixed-WSTRB CRC-32 matches software ref");
+
+            // Subtest 9c: Multi-message re-seed clears prior accumulator without HW reset
+            axi_write(REG_CRC_CTRL, 32'h0000_0001, 4'b0001, RESP_OKAY);
+            axi_write(REG_CRC_DATA, 32'h3433_3231, 4'b1111, RESP_OKAY); // "1234"
+            axi_write(REG_CRC_DATA, 32'h3837_3635, 4'b1111, RESP_OKAY); // "5678"
+            axi_write(REG_CRC_DATA, 32'h0000_0039, 4'b0001, RESP_OKAY); // "9"
+            check_reg(REG_CRC_RESULT, 32'hCBF4_3926, 32'hFFFF_FFFF, "Sequential re-seed 123456789 -> 0xCBF43926");
+
+            // Subtest 9d: Dynamic mid-stream reset recovery
+            rst_n <= 1'b0;
+            repeat(5) @(posedge clk);
+            rst_n <= 1'b1;
+            repeat(3) @(posedge clk);
+            check_reg(REG_CRC_STATUS, 32'h0000_0000, 32'h0000_FFFF, "Dynamic reset clears STATUS byte_count");
+            check_reg(REG_CRC_RESULT, 32'h0000_0000, 32'hFFFF_FFFF, "Dynamic reset clears CRC_RESULT");
+        end
+
+        // ---------------------------------------------------------------------
         // Simulation Summary
         // ---------------------------------------------------------------------
         repeat(10) @(posedge clk);

@@ -2,16 +2,16 @@
 // tb_soc_mem_access.sv  —  Memory & Reset Vector Integration Testbench for SoC Top
 //
 // Tests complete cycle-based AXI transactions through the 64->32 AXI bridges,
-// the 3x8 AXI interconnect fabric, and the dual-region IMEM and DMEM SRAMs.
+// the 4x8 AXI interconnect fabric, and the dual-region IMEM and DMEM SRAMs.
 //
 // Verification Coverage:
 //   1. 64-bit IFU instruction fetch at VeeR EL2 reset vector (0x8000_0000)
 //   2. 64-bit IFU instruction fetch at aliased base address (0x0000_0000)
 //   3. 64-bit IFU instruction fetch at offset (0x8000_0008)
-//   4. 64-bit LSU store and readback in DMEM (0x0004_0100)
+//   4. 64-bit LSU store and readback in DMEM (0x0001_0100)
 //   5. Direct memory array inspection in u_soc_top.u_dmem.mem
-//   6. 32-bit LSU store and load at DMEM base (0x0004_0000, lower word lane addr[2]=0)
-//   7. 32-bit LSU store and load at DMEM word 1 (0x0004_0004, upper word lane addr[2]=1)
+//   6. 32-bit LSU store and load at DMEM base (0x0001_0000, lower word lane addr[2]=0)
+//   7. 32-bit LSU store and load at DMEM word 1 (0x0001_0004, upper word lane addr[2]=1)
 //   8. 64-bit LSU readback assembling consecutive 32-bit writes
 //   9. Sub-word byte-level stores with individual write strobes
 //  10. Handshake backpressure & data stability (RREADY stall on IFU & LSU, BREADY stall on LSU)
@@ -180,8 +180,8 @@ module tb_soc_mem_access;
     // SoC Top Instantiation
     // -------------------------------------------------------------------------
     soc_top #(
-        .IMEM_DEPTH(65536),
-        .DMEM_DEPTH(65536)
+        .IMEM_DEPTH(16384),
+        .DMEM_DEPTH(32768)
     ) u_soc_top (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -818,10 +818,10 @@ module tb_soc_mem_access;
         check("IFU fetch 0x8000_0008 response OKAY", rd_resp === 2'b00);
 
         // =====================================================================
-        // Test 4: 64-bit LSU Write to DMEM (0x0004_0100) & Internal RAM Inspection
+        // Test 4: 64-bit LSU Write to DMEM (0x0001_0100) & Internal RAM Inspection
         // =====================================================================
-        $display("\n[TEST 4] 64-bit LSU Write to DMEM (0x0004_0100)");
-        lsu_write_64(32'h0004_0100, 8'h10, 64'hCAFE_BABE_DEAD_BEEF, 8'hFF, wr_resp, wr_bid);
+        $display("\n[TEST 4] 64-bit LSU Write to DMEM (0x0001_0100)");
+        lsu_write_64(32'h0001_0100, 8'h10, 64'hCAFE_BABE_DEAD_BEEF, 8'hFF, wr_resp, wr_bid);
         check("LSU 64-bit write response OKAY", wr_resp === 2'b00);
         check("LSU 64-bit write bid match (0x10)", wr_bid === 8'h10);
         // Inspect internal DMEM word storage (0x100 >> 2 = 64)
@@ -829,10 +829,10 @@ module tb_soc_mem_access;
         check_eq_32("DMEM internal mem[65] upper word", u_soc_top.u_dmem.mem[65], 32'hCAFE_BABE);
 
         // =====================================================================
-        // Test 5: 64-bit LSU Readback from DMEM (0x0004_0100)
+        // Test 5: 64-bit LSU Readback from DMEM (0x0001_0100)
         // =====================================================================
-        $display("\n[TEST 5] 64-bit LSU Readback from DMEM (0x0004_0100)");
-        lsu_read_64(32'h0004_0100, 8'h11, rd_data64, rd_resp, rd_last, rd_id);
+        $display("\n[TEST 5] 64-bit LSU Readback from DMEM (0x0001_0100)");
+        lsu_read_64(32'h0001_0100, 8'h11, rd_data64, rd_resp, rd_last, rd_id);
         check_eq_64("LSU 64-bit readback matches written value",
                     rd_data64, 64'hCAFE_BABE_DEAD_BEEF);
         check("LSU 64-bit readback response OKAY", rd_resp === 2'b00);
@@ -843,21 +843,21 @@ module tb_soc_mem_access;
         // Test 6: 32-bit LSU Writes and Readbacks at DMEM Base & Offset
         // =====================================================================
         $display("\n[TEST 6] 32-bit LSU Writes and Word-Lane Readbacks");
-        lsu_write_32(32'h0004_0000, 8'h20, 64'h0000_0000_5555_AAAA, 8'h0F, wr_resp, wr_bid);
+        lsu_write_32(32'h0001_0000, 8'h20, 64'h0000_0000_5555_AAAA, 8'h0F, wr_resp, wr_bid);
         check("32-bit write addr[2]=0 response OKAY", wr_resp === 2'b00);
         check_eq_32("DMEM mem[0] contains written 32-bit word", u_soc_top.u_dmem.mem[0], 32'h5555_AAAA);
 
-        lsu_read_32(32'h0004_0000, 8'h21, rd_data64, rd_resp, rd_last, rd_id);
+        lsu_read_32(32'h0001_0000, 8'h21, rd_data64, rd_resp, rd_last, rd_id);
         check_eq_32("32-bit read addr[2]=0 placed on rdata[31:0]", rd_data64[31:0], 32'h5555_AAAA);
         check_eq_32("32-bit read addr[2]=0 upper word zero-extended", rd_data64[63:32], 32'h0000_0000);
         check("32-bit read response OKAY", rd_resp === 2'b00);
 
-        // Upper word lane: addr[2] == 1 (0x0004_0004 -> mem[1])
-        lsu_write_32(32'h0004_0004, 8'h22, 64'h1234_5678_0000_0000, 8'hF0, wr_resp, wr_bid);
+        // Upper word lane: addr[2] == 1 (0x0001_0004 -> mem[1])
+        lsu_write_32(32'h0001_0004, 8'h22, 64'h1234_5678_0000_0000, 8'hF0, wr_resp, wr_bid);
         check("32-bit write addr[2]=1 response OKAY", wr_resp === 2'b00);
         check_eq_32("DMEM mem[1] contains written 32-bit word", u_soc_top.u_dmem.mem[1], 32'h1234_5678);
 
-        lsu_read_32(32'h0004_0004, 8'h23, rd_data64, rd_resp, rd_last, rd_id);
+        lsu_read_32(32'h0001_0004, 8'h23, rd_data64, rd_resp, rd_last, rd_id);
         check_eq_32("32-bit read addr[2]=1 placed on rdata[63:32]", rd_data64[63:32], 32'h1234_5678);
         check_eq_32("32-bit read addr[2]=1 lower word zero-extended", rd_data64[31:0], 32'h0000_0000);
         check("32-bit read response OKAY", rd_resp === 2'b00);
@@ -866,29 +866,29 @@ module tb_soc_mem_access;
         check("32-bit read response OKAY", rd_resp === 2'b00);
 
         // =====================================================================
-        // Test 7: 64-bit Readback of Consecutive 32-bit Writes (0x0004_0000)
+        // Test 7: 64-bit Readback of Consecutive 32-bit Writes (0x0001_0000)
         // =====================================================================
         $display("\n[TEST 7] 64-bit Readback of Consecutive 32-bit Stores");
-        lsu_read_64(32'h0004_0000, 8'h24, rd_data64, rd_resp, rd_last, rd_id);
+        lsu_read_64(32'h0001_0000, 8'h24, rd_data64, rd_resp, rd_last, rd_id);
         check_eq_64("64-bit load correctly assemblies {mem[1], mem[0]}",
                     rd_data64, 64'h1234_5678_5555_AAAA);
 
         // =====================================================================
         // Test 8: Byte-level Sub-word Writes with Byte Strobes
         // =====================================================================
-        $display("\n[TEST 8] Byte-level Sub-word Writes to DMEM Word 8 (0x0004_0020)");
+        $display("\n[TEST 8] Byte-level Sub-word Writes to DMEM Word 8 (0x0001_0020)");
         // Write byte 0 (strb 8'h01)
-        lsu_write_32(32'h0004_0020, 8'h30, 64'h0000_0000_0000_00A1, 8'h01, wr_resp, wr_bid);
+        lsu_write_32(32'h0001_0020, 8'h30, 64'h0000_0000_0000_00A1, 8'h01, wr_resp, wr_bid);
         // Write byte 1 (strb 8'h02)
-        lsu_write_32(32'h0004_0020, 8'h31, 64'h0000_0000_0000_B200, 8'h02, wr_resp, wr_bid);
+        lsu_write_32(32'h0001_0020, 8'h31, 64'h0000_0000_0000_B200, 8'h02, wr_resp, wr_bid);
         // Write byte 2 (strb 8'h04)
-        lsu_write_32(32'h0004_0020, 8'h32, 64'h0000_0000_00C3_0000, 8'h04, wr_resp, wr_bid);
+        lsu_write_32(32'h0001_0020, 8'h32, 64'h0000_0000_00C3_0000, 8'h04, wr_resp, wr_bid);
         // Write byte 3 (strb 8'h08)
-        lsu_write_32(32'h0004_0020, 8'h33, 64'h0000_0000_D400_0000, 8'h08, wr_resp, wr_bid);
+        lsu_write_32(32'h0001_0020, 8'h33, 64'h0000_0000_D400_0000, 8'h08, wr_resp, wr_bid);
         check_eq_32("DMEM mem[8] assembled byte by byte", u_soc_top.u_dmem.mem[8], 32'hD4C3_B2A1);
 
-        // Write upper word lane byte (addr[2]=1, offset 0x0004_0026 -> byte 2 of mem[9])
-        lsu_write_32(32'h0004_0024, 8'h34, 64'h00EE_0000_0000_0000, 8'h40, wr_resp, wr_bid);
+        // Write upper word lane byte (addr[2]=1, offset 0x0001_0026 -> byte 2 of mem[9])
+        lsu_write_32(32'h0001_0024, 8'h34, 64'h00EE_0000_0000_0000, 8'h40, wr_resp, wr_bid);
         check_eq_32("DMEM mem[9] byte 2 written via wstrb[6]",
                     {8'h0, u_soc_top.u_dmem.mem[9][23:16], 16'h0}, 32'h00EE_0000);
 
@@ -930,7 +930,7 @@ module tb_soc_mem_access;
         // --- 9B: LSU Write with BREADY stalled ---
         @(posedge clk);
         lsu_axi_awvalid <= 1'b1;
-        lsu_axi_awaddr  <= 32'h0004_0200;
+        lsu_axi_awaddr  <= 32'h0001_0200;
         lsu_axi_awid    <= 8'h41;
         lsu_axi_awlen   <= 8'd0;
         lsu_axi_awsize  <= 3'b011;
@@ -968,7 +968,7 @@ module tb_soc_mem_access;
         // --- 9C: LSU Read with RREADY stalled ---
         @(posedge clk);
         lsu_axi_arvalid <= 1'b1;
-        lsu_axi_araddr  <= 32'h0004_0200;
+        lsu_axi_araddr  <= 32'h0001_0200;
         lsu_axi_arid    <= 8'h42;
         lsu_axi_arlen   <= 8'd0;
         lsu_axi_arsize  <= 3'b011;
@@ -997,13 +997,13 @@ module tb_soc_mem_access;
         $display("\n[TEST 10] AW and W Channel Decoupling Tests");
 
         // 10A: AW presented 5 cycles BEFORE W
-        lsu_write_aw_before_w(32'h0004_0210, 8'h50, 64'hAAAA_BBBB_CCCC_DDDD, 8'hFF, 5, wr_resp, wr_bid);
+        lsu_write_aw_before_w(32'h0001_0210, 8'h50, 64'hAAAA_BBBB_CCCC_DDDD, 8'hFF, 5, wr_resp, wr_bid);
         check("AW-before-W write response OKAY", wr_resp === 2'b00);
         check_eq_32("AW-before-W DMEM mem[132]", u_soc_top.u_dmem.mem[132], 32'hCCCC_DDDD);
         check_eq_32("AW-before-W DMEM mem[133]", u_soc_top.u_dmem.mem[133], 32'hAAAA_BBBB);
 
         // 10B: W presented 5 cycles BEFORE AW
-        lsu_write_w_before_aw(32'h0004_0218, 8'h51, 64'h1122_3344_5566_7788, 8'hFF, 5, wr_resp, wr_bid);
+        lsu_write_w_before_aw(32'h0001_0218, 8'h51, 64'h1122_3344_5566_7788, 8'hFF, 5, wr_resp, wr_bid);
         check("W-before-AW write response OKAY", wr_resp === 2'b00);
         check_eq_32("W-before-AW DMEM mem[134]", u_soc_top.u_dmem.mem[134], 32'h5566_7788);
         check_eq_32("W-before-AW DMEM mem[135]", u_soc_top.u_dmem.mem[135], 32'h1122_3344);
@@ -1012,11 +1012,11 @@ module tb_soc_mem_access;
         // Test 11: System Bus (SB) Master Port Transactions
         // =====================================================================
         $display("\n[TEST 11] System Bus (SB) Master Port Transactions");
-        sb_write_32(32'h0004_0300, 8'h60, 64'h0000_0000_FEED_FACE, 8'h0F, wr_resp, wr_bid);
+        sb_write_32(32'h0001_0300, 8'h60, 64'h0000_0000_FEED_FACE, 8'h0F, wr_resp, wr_bid);
         check("SB 32-bit write response OKAY", wr_resp === 2'b00);
         check_eq_32("DMEM mem[192] written via SB master", u_soc_top.u_dmem.mem[192], 32'hFEED_FACE);
 
-        sb_read_32(32'h0004_0300, 8'h61, rd_data64, rd_resp, rd_last, rd_id);
+        sb_read_32(32'h0001_0300, 8'h61, rd_data64, rd_resp, rd_last, rd_id);
         check_eq_32("SB 32-bit readback data matches", rd_data64[31:0], 32'hFEED_FACE);
         check("SB 32-bit readback response OKAY", rd_resp === 2'b00);
         check("SB 32-bit readback rid matches (0x61)", rd_id === 8'h61);

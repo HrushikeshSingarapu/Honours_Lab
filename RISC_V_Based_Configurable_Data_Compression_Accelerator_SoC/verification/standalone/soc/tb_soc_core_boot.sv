@@ -5,12 +5,12 @@
 //   1. Reset release with VeeR EL2 reset vector at 0x8000_0000.
 //   2. IFU fetch from IMEM alias at 0x8000_0000 through axi64_to_32_bridge and interconnect.
 //   3. Core execution of 5 instructions:
-//        0x8000_0000: lui  x1, 0x00040      (DMEM base address = 0x0004_0000)
+//        0x8000_0000: lui  x1, 0x00010      (DMEM base address = 0x0001_0000)
 //        0x8000_0004: lui  x2, 0xCAFEC
 //        0x8000_0008: addi x2, x2, 0xABE    (x2 = 0xCAFE_BABE)
 //        0x8000_000C: sw   x2, 0(x1)        (Store 0xCAFE_BABE to DMEM[0])
 //        0x8000_0010: j    loop             (Infinite loop at 0x8000_0010)
-//   4. LSU write of 0xCAFE_BABE through LSU axi64_to_32_bridge to DMEM at 0x0004_0000.
+//   4. LSU write of 0xCAFE_BABE through LSU axi64_to_32_bridge to DMEM at 0x0001_0000.
 //   5. Assert that DMEM word 0 contains 0xCAFE_BABE upon retirement.
 // =============================================================================
 
@@ -45,8 +45,8 @@ module tb_soc_core_boot;
 
     // DUT instantiation
     soc_core_top #(
-        .IMEM_DEPTH(65536),
-        .DMEM_DEPTH(65536)
+        .IMEM_DEPTH(16384),
+        .DMEM_DEPTH(32768)
     ) u_dut (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -121,7 +121,7 @@ module tb_soc_core_boot;
                 boot_success = 1'b1;
                 $display("");
                 $display("************************************************************");
-                $display("[%0t ns] [CYC %0d] SUCCESS: DMEM[0x0004_0000] contains 0xCAFEBABE!",
+                $display("[%0t ns] [CYC %0d] SUCCESS: DMEM[0x0001_0000] contains 0xCAFEBABE!",
                          $time, cycle_count);
                 $display("************************************************************");
             end
@@ -148,8 +148,8 @@ module tb_soc_core_boot;
         u_dut.u_soc.u_dmem.mem[0] = 32'h0000_0000;
 
         // Load minimal boot program into IMEM (executing from 0x8000_0000)
-        // Word 0 (0x8000_0000): lui  x1, 0x00040      -> x1 = 0x0004_0000 (DMEM base)
-        u_dut.u_soc.u_imem.mem[0] = 32'h000400b7;
+        // Word 0 (0x8000_0000): lui  x1, 0x00010      -> x1 = 0x0001_0000 (DMEM base)
+        u_dut.u_soc.u_imem.mem[0] = 32'h000100b7;
         // Word 1 (0x8000_0004): lui  x2, 0xCAFEC      -> x2 upper 20 bits
         u_dut.u_soc.u_imem.mem[1] = 32'hcafec137;
         // Word 2 (0x8000_0008): addi x2, x2, 0xABE    -> x2 = 0xCAFE_BABE
@@ -160,12 +160,12 @@ module tb_soc_core_boot;
         u_dut.u_soc.u_imem.mem[4] = 32'h0000006f;
 
         $display("IMEM pre-loaded with boot instructions at 0x8000_0000:");
-        $display("  [0x8000_0000] = 0x%08h (lui  x1, 0x00040)",   u_dut.u_soc.u_imem.mem[0]);
+        $display("  [0x8000_0000] = 0x%08h (lui  x1, 0x00010)",   u_dut.u_soc.u_imem.mem[0]);
         $display("  [0x8000_0004] = 0x%08h (lui  x2, 0xCAFEC)",   u_dut.u_soc.u_imem.mem[1]);
         $display("  [0x8000_0008] = 0x%08h (addi x2, x2, 0xABE)",   u_dut.u_soc.u_imem.mem[2]);
         $display("  [0x8000_000C] = 0x%08h (sw   x2, 0(x1))",       u_dut.u_soc.u_imem.mem[3]);
         $display("  [0x8000_0010] = 0x%08h (j    loop)",            u_dut.u_soc.u_imem.mem[4]);
-        $display("Initial DMEM[0x0004_0000] = 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
+        $display("Initial DMEM[0x0001_0000] = 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
 
         // Hold reset for 30 cycles
         repeat (30) @(posedge clk);
@@ -186,7 +186,7 @@ module tb_soc_core_boot;
                     $display("");
                     $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                     $display("[%0t ns] TIMEOUT: Boot test did not write 0xCAFEBABE to DMEM within 1200 cycles!", $time);
-                    $display("Final DMEM[0x0004_0000] = 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
+                    $display("Final DMEM[0x0001_0000] = 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
                     $display("Total fetches: %0d, Total stores: %0d, Total retires: %0d",
                              fetch_count, store_count, retire_count);
                     $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -204,7 +204,7 @@ module tb_soc_core_boot;
         $display("IFU Fetch Beats        : %0d", fetch_count);
         $display("LSU Store Beats        : %0d", store_count);
         $display("Retired Instructions   : %0d", retire_count);
-        $display("DMEM[0x0004_0000] Value: 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
+        $display("DMEM[0x0001_0000] Value: 0x%08h", u_dut.u_soc.u_dmem.mem[0]);
 
         if (u_dut.u_soc.u_dmem.mem[0] == 32'hCAFE_BABE) begin
             $display("TEST RESULT            : >>> PASSED <<<");
@@ -212,7 +212,7 @@ module tb_soc_core_boot;
             $display("executed instructions, and wrote signature 0xCAFEBABE to DMEM!");
         end else begin
             $display("TEST RESULT            : >>> FAILED <<<");
-            $display("DMEM[0x0004_0000] did not match expected 0xCAFEBABE.");
+            $display("DMEM[0x0001_0000] did not match expected 0xCAFEBABE.");
         end
         $display("================================================================");
 
@@ -220,4 +220,3 @@ module tb_soc_core_boot;
     end
 
 endmodule
-

@@ -1,6 +1,7 @@
 // =============================================================================
 // soc_env.sv — Top-Level UVM Environment for SoC Verification
-// Assembles 4 VIP agents (UART, GPIO, Reset, IRQ), Scoreboard, and Coverage.
+// Assembles the exact 4 active VIP agents (UART, GPIO, Reset, IRQ),
+// unified Scoreboard, and Functional Coverage subscriber.
 // =============================================================================
 `timescale 1ns/1ps
 
@@ -31,14 +32,15 @@ class soc_env extends uvm_env;
       cfg = soc_env_cfg::type_id::create("cfg");
     end
 
-    // Forward sub-VIP configuration objects down to their respective agents
+    // Forward sub-VIP configuration objects down to their respective 4 agents
     if (cfg.has_uart)  uvm_config_db#(uart_cfg)::set(this, "uart_agnt*", "cfg", cfg.uart_c);
     if (cfg.has_gpio)  uvm_config_db#(gpio_cfg)::set(this, "gpio_agnt*", "cfg", cfg.gpio_c);
     if (cfg.has_reset) uvm_config_db#(reset_cfg)::set(this, "reset_agnt*", "cfg", cfg.reset_c);
     if (cfg.has_irq)   uvm_config_db#(irq_cfg)::set(this, "irq_agnt*", "cfg", cfg.irq_c);
     uvm_config_db#(soc_env_cfg)::set(this, "scb*", "cfg", cfg);
+    uvm_config_db#(soc_env_cfg)::set(this, "cov*", "cfg", cfg);
 
-    // Build the four VIP agents
+    // Build the exact four active VIP agents
     if (cfg.has_uart)  uart_agnt  = uart_agent::type_id::create("uart_agnt", this);
     if (cfg.has_gpio)  gpio_agnt  = gpio_agent::type_id::create("gpio_agnt", this);
     if (cfg.has_reset) reset_agnt = reset_agent::type_id::create("reset_agnt", this);

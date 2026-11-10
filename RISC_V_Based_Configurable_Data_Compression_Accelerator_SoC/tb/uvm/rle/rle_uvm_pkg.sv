@@ -67,6 +67,8 @@ package rle_uvm_pkg;
             super.new(name);
         endfunction
 
+        localparam int RLE_BUF_DEPTH = 512;
+
         function void predict(
             input  rle_seq_item item,
             output logic [7:0]  gold_out [],
@@ -74,6 +76,12 @@ package rle_uvm_pkg;
             output bit          gold_err
         );
             gold_err = 1'b0;
+
+            if (item.in_length == 0) begin
+                gold_len = 0;
+                gold_out = new[0];
+                return;
+            end
 
             if (item.mode == RLE_MODE_COMPRESS) begin
                 // Compression Flow
@@ -96,6 +104,12 @@ package rle_uvm_pkg;
                     token_q.push_back(cur_byte);
                 end
 
+                if (token_q.size() > RLE_BUF_DEPTH) begin
+                    gold_err = 1'b1;
+                    gold_len = 0;
+                    gold_out = new[0];
+                    return;
+                end
                 gold_len = token_q.size();
                 gold_out = new[gold_len];
                 for (int i = 0; i < gold_len; i++) gold_out[i] = token_q[i];
@@ -118,6 +132,13 @@ package rle_uvm_pkg;
 
                     // Zero count token is an invalid record
                     if (count == 0) begin
+                        gold_err = 1'b1;
+                        gold_len = 0;
+                        gold_out = new[0];
+                        return;
+                    end
+
+                    if (expand_q.size() + count > RLE_BUF_DEPTH) begin
                         gold_err = 1'b1;
                         gold_len = 0;
                         gold_out = new[0];
@@ -152,6 +173,9 @@ package rle_uvm_pkg;
         int cov_decompress_hits    = 0;
         int cov_error_odd_len_hits = 0;
         int cov_error_zero_cnt_hits= 0;
+        int cov_zero_len_hits      = 0;
+        int cov_buf_overflow_hits  = 0;
+        int cov_prng_mixed_hits    = 0;
         int total_samples          = 0;
 
         function new(string name = "rle_coverage", uvm_component parent = null);
@@ -165,12 +189,18 @@ package rle_uvm_pkg;
 
         function void sample(rle_seq_item item);
             total_samples++;
+            if (item.in_length == 0) cov_zero_len_hits++;
+            if (item.actual_error && (item.mode == RLE_MODE_COMPRESS ||
+                ((item.in_length % 2 == 0) && item.in_length >= 2 && item.in_payload[0] != 0))) begin
+                cov_buf_overflow_hits++;
+            end
 
             if (item.mode == RLE_MODE_COMPRESS) begin
                 if (item.in_length == 1) cov_single_byte_hits++;
                 if (item.in_length == 255) cov_max_run_hits++;
                 if (item.in_length > 255) cov_boundary_split_hits++;
                 if (item.in_length > 1 && item.in_length < 255) cov_repeated_byte_hits++;
+                if (item.in_length == 64 && !item.actual_error) cov_prng_mixed_hits++;
 
                 // Detect alternating bytes pattern (e.g., ABABABAB)
                 if (item.in_length >= 4) begin
@@ -205,8 +235,11 @@ package rle_uvm_pkg;
                            (cov_alternating_hits > 0) +
                            (cov_decompress_hits > 0) +
                            (cov_error_odd_len_hits > 0) +
-                           (cov_error_zero_cnt_hits > 0);
-            cov_pct = (real'(covered_bins) / 8.0) * 100.0;
+                           (cov_error_zero_cnt_hits > 0) +
+                           (cov_zero_len_hits > 0) +
+                           (cov_buf_overflow_hits > 0) +
+                           (cov_prng_mixed_hits > 0);
+            cov_pct = (real'(covered_bins) / 11.0) * 100.0;
 
             `uvm_info("RLE_COV", "========================================================", UVM_LOW)
             `uvm_info("RLE_COV", "            RLE FUNCTIONAL COVERAGE REPORT             ", UVM_LOW)
@@ -217,9 +250,12 @@ package rle_uvm_pkg;
             `uvm_info("RLE_COV", $sformatf("  Boundary Run Split (>255) Bin: %0d hits", cov_boundary_split_hits), UVM_LOW)
             `uvm_info("RLE_COV", $sformatf("  Alternating Data Bin         : %0d hits", cov_alternating_hits), UVM_LOW)
             `uvm_info("RLE_COV", $sformatf("  Decompression Expansion Bin  : %0d hits", cov_decompress_hits), UVM_LOW)
+            `uvm_info("RLE_COV", $sformatf("  Zero-Length Input Bin        : %0d hits", cov_zero_len_hits), UVM_LOW)
+            `uvm_info("RLE_COV", $sformatf("  Output Buffer Overflow Bin   : %0d hits", cov_buf_overflow_hits), UVM_LOW)
+            `uvm_info("RLE_COV", $sformatf("  PRNG Mixed Payload Bin       : %0d hits", cov_prng_mixed_hits), UVM_LOW)
             `uvm_info("RLE_COV", $sformatf("  Error: Odd Decomp Length Bin : %0d hits", cov_error_odd_len_hits), UVM_LOW)
             `uvm_info("RLE_COV", $sformatf("  Error: Zero Run Count Bin    : %0d hits", cov_error_zero_cnt_hits), UVM_LOW)
-            `uvm_info("RLE_COV", $sformatf("  Overall Covered Functional Bins : %0d / 8 (%0.1f%%)", covered_bins, cov_pct), UVM_LOW)
+            `uvm_info("RLE_COV", $sformatf("  Overall Covered Functional Bins : %0d / 11 (%0.1f%%)", covered_bins, cov_pct), UVM_LOW)
             `uvm_info("RLE_COV", "========================================================", UVM_LOW)
         endfunction
     endclass: rle_coverage
@@ -805,6 +841,73 @@ package rle_uvm_pkg;
             buf_data[0] = 8'd0; buf_data[1] = 8'h99; // Count = 0
             item.set_input_bytes(buf_data);
             item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 9: Zero-Length Compression & Decompression
+            // -----------------------------------------------------------------
+            `uvm_info("SEQ", ">>> Executing Scenario 9: Zero-Length Compress & Decompress", UVM_LOW)
+            item = rle_seq_item::type_id::create("item_zero_comp");
+            start_item(item);
+            item.mode = RLE_MODE_COMPRESS;
+            buf_data = new[0];
+            item.set_input_bytes(buf_data);
+            finish_item(item);
+
+            item = rle_seq_item::type_id::create("item_zero_decomp");
+            start_item(item);
+            item.mode = RLE_MODE_DECOMPRESS;
+            buf_data = new[0];
+            item.set_input_bytes(buf_data);
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 10: Compression Output Buffer Overflow (> 512 bytes)
+            // 260 distinct alternating bytes -> needs 520 output bytes > 512
+            // -----------------------------------------------------------------
+            `uvm_info("SEQ", ">>> Executing Scenario 10: Compression Output Buffer Overflow (>512B)", UVM_LOW)
+            item = rle_seq_item::type_id::create("item_comp_ovf");
+            start_item(item);
+            item.mode = RLE_MODE_COMPRESS;
+            buf_data = new[260];
+            for (int i = 0; i < 260; i++) buf_data[i] = i[7:0];
+            item.set_input_bytes(buf_data);
+            item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 11: Decompression Output Buffer Overflow (> 512 bytes)
+            // [200, 0x11], [200, 0x22], [200, 0x33] -> 600 > 512
+            // -----------------------------------------------------------------
+            `uvm_info("SEQ", ">>> Executing Scenario 11: Decompression Output Buffer Overflow (>512B)", UVM_LOW)
+            item = rle_seq_item::type_id::create("item_decomp_ovf");
+            start_item(item);
+            item.mode = RLE_MODE_DECOMPRESS;
+            buf_data = new[6];
+            buf_data[0] = 8'd200; buf_data[1] = 8'h11;
+            buf_data[2] = 8'd200; buf_data[3] = 8'h22;
+            buf_data[4] = 8'd200; buf_data[5] = 8'h33;
+            item.set_input_bytes(buf_data);
+            item.expected_error = 1'b1;
+            finish_item(item);
+
+            // -----------------------------------------------------------------
+            // Scenario 12: Deterministic PRNG Mixed Vector (64 bytes)
+            // -----------------------------------------------------------------
+            `uvm_info("SEQ", ">>> Executing Scenario 12: Deterministic PRNG Mixed Vector (64 bytes)", UVM_LOW)
+            item = rle_seq_item::type_id::create("item_prng64");
+            start_item(item);
+            item.mode = RLE_MODE_COMPRESS;
+            buf_data = new[64];
+            begin
+                automatic logic [31:0] lfsr = 32'hACE1_1357;
+                for (int i = 0; i < 64; i++) begin
+                    lfsr = {lfsr[30:0], lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0]};
+                    // Force occasional runs and singletons
+                    buf_data[i] = (lfsr[2]) ? lfsr[7:4] : {4'hA, lfsr[3:0]};
+                end
+            end
+            item.set_input_bytes(buf_data);
             finish_item(item);
         endtask
     endclass: rle_master_sequence

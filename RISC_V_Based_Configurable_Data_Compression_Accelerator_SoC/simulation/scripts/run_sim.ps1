@@ -43,6 +43,7 @@ $ScriptDir    = $PSScriptRoot
 $RepoRoot     = (Resolve-Path "$ScriptDir\..\..").Path
 $RtlDir       = "$RepoRoot\rtl"
 $TbDir        = "$RepoRoot\verification\standalone\soc"
+$FilelistsDir = "$RepoRoot\verification\standalone\filelists"
 $FirmwareDir  = "$RepoRoot\firmware"
 $VeerDir      = "$RepoRoot\third_party\RISC-V-VeeR-EL2"
 $UartIpDir    = "$RepoRoot\rtl\peripherals\uart"
@@ -61,7 +62,7 @@ function Find-Tool {
     $cmd = Get-Command $Name -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
     foreach ($fb in $Fallbacks) {
-        if (Test-Path $fb) { return (Resolve-Path $fb).Path }
+        if (-not [string]::IsNullOrWhiteSpace($fb) -and (Test-Path $fb)) { return (Resolve-Path $fb).Path }
     }
     return $null
 }
@@ -86,12 +87,13 @@ $PerlTool = Find-Tool "perl" @(
     "C:\Program Files\Git\usr\bin\perl.exe",
     "C:\Strawberry\perl\bin\perl.exe"
 )
+$RiscvBinFallback = if ($env:RISCV_TOOLCHAIN_HOME) { "$($env:RISCV_TOOLCHAIN_HOME)\bin" } else { $null }
 $RiscvGcc = Find-Tool "riscv64-unknown-elf-gcc" @(
-    "H:\2025.1\gnu\riscv\nt\riscv64-unknown-elf\bin\riscv64-unknown-elf-gcc.exe",
+    $(if ($RiscvBinFallback) { "$RiscvBinFallback\riscv64-unknown-elf-gcc.exe" }),
     "C:\SysGCC\riscv\bin\riscv64-unknown-elf-gcc.exe"
 )
 $RiscvObjcopy = Find-Tool "riscv64-unknown-elf-objcopy" @(
-    "H:\2025.1\gnu\riscv\nt\riscv64-unknown-elf\bin\riscv64-unknown-elf-objcopy.exe",
+    $(if ($RiscvBinFallback) { "$RiscvBinFallback\riscv64-unknown-elf-objcopy.exe" }),
     "C:\SysGCC\riscv\bin\riscv64-unknown-elf-objcopy.exe"
 )
 
@@ -148,10 +150,10 @@ if ($NeedGenerate) {
     }
     Write-Host "`n[VeeR Config] Generating VeeR configuration headers using official veer.config..." -ForegroundColor Yellow
     if (-not (Test-Path $DefaultSnapDir)) { New-Item -ItemType Directory -Path $DefaultSnapDir -Force | Out-Null }
-    
+
     $ConfigScript = "$VeerDir\configs\veer.config"
     $PicmapScript = "$VeerDir\tools\picmap"
-    
+
     Push-Location $VeerDir
     try {
         & $PerlTool $ConfigScript -target=default
@@ -179,25 +181,26 @@ function Build-Firmware {
     Write-Host "`n[Firmware] Compiling C firmware with MRAC CSR 0x7C0 initialization..." -ForegroundColor Yellow
     Push-Location $FirmwareDir
     try {
-        $ElfOut = "firmware.elf"
-        $BinOut = "firmware.bin"
-        $HexOut = "uart_test_word.hex"
+        $ElfOut = "images/firmware.elf"
+        $BinOut = "images/firmware.bin"
+        $HexOut = "images/uart_test_word.hex"
 
         # Compile with -march=rv32imc_zicsr_zifencei for CSR/FENCE access on GCC 13+
-        & $RiscvGcc -march=rv32imc_zicsr_zifencei -mabi=ilp32 -O2 -nostartfiles -T linker.ld -o $ElfOut start.S main.c
+        & $RiscvGcc -march=rv32imc_zicsr_zifencei -mabi=ilp32 -O2 -nostartfiles -T linker/linker.ld -o $ElfOut startup/start.S source/main.c
         if ($LASTEXITCODE -ne 0) { throw "RISC-V GCC compilation failed with code $LASTEXITCODE" }
 
         & $RiscvObjcopy -O binary $ElfOut $BinOut
         if ($LASTEXITCODE -ne 0) { throw "objcopy failed with code $LASTEXITCODE" }
 
         # Convert binary payload to 32-bit hex word file for Verilog $readmemh
-        $bytes = [System.IO.File]::ReadAllBytes("$FirmwareDir\$BinOut")
+        $bytes = [System.IO.File]::ReadAllBytes("$FirmwareDir\images\firmware.bin")
         $lines = [System.Collections.Generic.List[string]]::new()
         for ($i = 0; $i -lt $bytes.Length; $i += 4) {
             $word = [BitConverter]::ToUInt32($bytes, $i)
             $lines.Add(("{0:x8}" -f $word))
         }
-        [System.IO.File]::WriteAllLines("$FirmwareDir\$HexOut", $lines)
+        [System.IO.File]::WriteAllLines("$FirmwareDir\images\uart_test_word.hex", $lines)
+        Remove-Item "$FirmwareDir\images\firmware.elf", "$FirmwareDir\images\firmware.bin" -ErrorAction SilentlyContinue
         Write-Host "[Firmware] Successfully built $HexOut ($($lines.Count) words)." -ForegroundColor Green
     } finally {
         Pop-Location
@@ -211,25 +214,26 @@ function Build-DmaFirmware {
     Write-Host "`n[Firmware] Compiling C DMA/RLE/CRC firmware..." -ForegroundColor Yellow
     Push-Location $FirmwareDir
     try {
-        $ElfOut = "dma_firmware.elf"
-        $BinOut = "dma_firmware.bin"
-        $HexOut = "dma_test_word.hex"
+        $ElfOut = "images/dma_firmware.elf"
+        $BinOut = "images/dma_firmware.bin"
+        $HexOut = "images/dma_test_word.hex"
 
         # Compile with -march=rv32imc_zicsr_zifencei for CSR/FENCE access on GCC 13+
-        & $RiscvGcc -march=rv32imc_zicsr_zifencei -mabi=ilp32 -O2 -nostartfiles -T linker.ld -o $ElfOut start.S main_dma.c
+        & $RiscvGcc -march=rv32imc_zicsr_zifencei -mabi=ilp32 -O2 -nostartfiles -T linker/linker.ld -o $ElfOut startup/start.S source/main_dma.c
         if ($LASTEXITCODE -ne 0) { throw "RISC-V GCC compilation failed with code $LASTEXITCODE" }
 
         & $RiscvObjcopy -O binary $ElfOut $BinOut
         if ($LASTEXITCODE -ne 0) { throw "objcopy failed with code $LASTEXITCODE" }
 
         # Convert binary payload to 32-bit hex word file for Verilog readmemh
-        $bytes = [System.IO.File]::ReadAllBytes("$FirmwareDir\$BinOut")
+        $bytes = [System.IO.File]::ReadAllBytes("$FirmwareDir\images\dma_firmware.bin")
         $lines = [System.Collections.Generic.List[string]]::new()
         for ($i = 0; $i -lt $bytes.Length; $i += 4) {
             $word = [BitConverter]::ToUInt32($bytes, $i)
             $lines.Add(("{0:x8}" -f $word))
         }
-        [System.IO.File]::WriteAllLines("$FirmwareDir\$HexOut", $lines)
+        [System.IO.File]::WriteAllLines("$FirmwareDir\images\dma_test_word.hex", $lines)
+        Remove-Item "$FirmwareDir\images\dma_firmware.elf", "$FirmwareDir\images\dma_firmware.bin" -ErrorAction SilentlyContinue
         Write-Host "[Firmware] Successfully built $HexOut ($($lines.Count) words)." -ForegroundColor Green
     } finally {
         Pop-Location
@@ -247,28 +251,35 @@ if ($Target -eq 'dma_firmware' -or $Target -eq 'all') {
 # =============================================================================
 # Step 3: ModelSim Compilation & Simulation Execution
 # =============================================================================
-Set-Location $TbDir
+Set-Location $RepoRoot
+
+$WorkLib = "$TbDir\work"
+if ($Clean -and (Test-Path $WorkLib)) {
+    Write-Host "`n[ModelSim] Cleaning work library $WorkLib..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force $WorkLib
+}
 
 # Create ModelSim work library if missing
-if (-not (Test-Path "$TbDir\work")) {
-    Write-Host "`n[ModelSim] Initializing work library in $TbDir..." -ForegroundColor Yellow
-    & $VlibTool work
+if (-not (Test-Path $WorkLib)) {
+    Write-Host "`n[ModelSim] Initializing work library in $WorkLib..." -ForegroundColor Yellow
+    & $VlibTool $WorkLib
 }
 
 # Common vlog compilation flags
 $VlogIncDirs = @(
     "+incdir+$VeerDir/design/include",
-    "+incdir+$VeerDir/snapshots/default",
+    "+incdir+$VeerDir/snapshots/soc_sim",
     "+incdir+$RtlDir/include",
     "+incdir+$UartIpDir",
-    "+incdir+."
+    "+incdir+$FirmwareDir/images",
+    "+incdir+$TbDir"
 )
 
 $DesignCompiled = $false
 
 function Ensure-DesignCompiled {
     param (
-        [string]$Filelist = "dma_firmware.f"
+        [string]$Filelist = "$FilelistsDir\dma_firmware.f"
     )
 
     if ($script:DesignCompiled) {
@@ -276,9 +287,9 @@ function Ensure-DesignCompiled {
     }
 
     $needsCompile = $true
-    if (Test-Path "$TbDir\work") {
+    if (Test-Path $WorkLib) {
         if ($VdirTool) {
-            $vdirOut = & $VdirTool -lib work soc_core_top 2>&1
+            $vdirOut = & $VdirTool -lib $WorkLib soc_core_top 2>&1
             if ($vdirOut -match "MODULE soc_core_top") {
                 $needsCompile = $false
             }
@@ -289,9 +300,9 @@ function Ensure-DesignCompiled {
         Write-Host "`n----------------------------------------------------------------" -ForegroundColor Magenta
         Write-Host " Pre-compiling SoC Design Infrastructure ($Filelist)" -ForegroundColor Magenta
         Write-Host "----------------------------------------------------------------" -ForegroundColor Magenta
-        $VlogArgs = @("-sv", "-mfcu", "+define+RV_OPENSOURCE") + $VlogIncDirs + @("-f", $Filelist)
+        $VlogArgs = @("-work", $WorkLib, "-sv", "-mfcu", "+define+RV_OPENSOURCE") + $VlogIncDirs + @("-f", $Filelist)
         if (-not (Test-Path $Filelist)) {
-            throw "Design filelist '$Filelist' not found in $TbDir!"
+            throw "Design filelist '$Filelist' not found!"
         }
         Write-Host "[Vlog] Compiling $Filelist..." -ForegroundColor Cyan
         & $VlogTool @VlogArgs
@@ -315,7 +326,7 @@ function Run-TestTarget {
     Write-Host "----------------------------------------------------------------" -ForegroundColor Magenta
 
     # 1. Compile testbench and dependencies
-    $VlogArgs = @("-sv", "-mfcu", "+define+RV_OPENSOURCE") + $VlogIncDirs
+    $VlogArgs = @("-work", $WorkLib, "-sv", "-mfcu", "+define+RV_OPENSOURCE") + $VlogIncDirs
     if ($Filelist -and (Test-Path $Filelist)) {
         $VlogArgs += @("-f", $Filelist)
     } else {
@@ -334,12 +345,12 @@ function Run-TestTarget {
     $VsimArgs  = @("-suppress", "3999,12036")
 
     if ($Gui) {
-        $VsimArgs += @("work.$TopModule")
+        $VsimArgs += @("-lib", $WorkLib, $TopModule)
         & $VsimTool @VsimArgs
         return
     }
 
-    $VsimArgs += @("-c", "-do", "run -all; quit", "work.$TopModule")
+    $VsimArgs += @("-c", "-do", "run -all; quit", "-lib", $WorkLib, $TopModule)
     Write-Host "[Vsim] Executing simulation batch: $TopModule..." -ForegroundColor Cyan
     & $VsimTool @VsimArgs | Tee-Object -FilePath $LogFile
 
@@ -365,31 +376,31 @@ function Run-TestTarget {
 $Results = @{}
 
 if ($Target -eq 'boot' -or $Target -eq 'all') {
-    Ensure-DesignCompiled -Filelist "dma_firmware.f"
+    Ensure-DesignCompiled -Filelist "$FilelistsDir\dma_firmware.f"
     $Results['boot'] = Run-TestTarget -TestName "CPU Core Boot Test" `
-                                      -TbSource "tb_soc_core_boot.sv" `
-                                      -ExpectedSignature "Signature 0xCAFEBABE verified at DMEM[0]"
+                                      -TbSource "$TbDir\tb_soc_core_boot.sv" `
+                                      -ExpectedSignature "TEST RESULT            : >>> PASSED <<<"
 }
 
 if ($Target -eq 'periph' -or $Target -eq 'all') {
-    Ensure-DesignCompiled -Filelist "dma_firmware.f"
+    Ensure-DesignCompiled -Filelist "$FilelistsDir\dma_firmware.f"
     $Results['periph'] = Run-TestTarget -TestName "VeeR EL2 Peripheral Test" `
-                                        -TbSource "tb_soc_periph_test.sv" `
-                                        -ExpectedSignature "ALL 5 PERIPHERALS PASSED! Signature 0xCAFEF00D"
+                                        -TbSource "$TbDir\tb_soc_periph_test.sv" `
+                                        -ExpectedSignature ">>> ALL 5 PERIPHERALS PASSED <<<"
 }
 
 if ($Target -eq 'uart' -or $Target -eq 'all') {
     $Results['uart'] = Run-TestTarget -TestName "VeeR EL2 UART Firmware Test" `
-                                      -TbSource "tb_soc_uart_firmware.sv" `
+                                      -TbSource "$TbDir\tb_soc_uart_firmware.sv" `
                                       -ExpectedSignature "RESULT: [SUCCESS] UART transmitted 'H' (0x48) followed by 'I' (0x49)!" `
-                                      -Filelist "uart_firmware.f"
+                                      -Filelist "$FilelistsDir\uart_firmware.f"
 }
 
 if ($Target -eq 'dma_firmware' -or $Target -eq 'all') {
     $Results['dma_firmware'] = Run-TestTarget -TestName "VeeR EL2 DMA+RLE+CRC Firmware Test" `
-                                              -TbSource "tb_soc_dma_firmware.sv" `
-                                              -ExpectedSignature "FIRMWARE COMPLETION SIGNATURE 0xCAFED00D DETECTED!" `
-                                              -Filelist "dma_firmware.f"
+                                              -TbSource "$TbDir\tb_soc_dma_firmware.sv" `
+                                              -ExpectedSignature "OVERALL COMPLETION STATUS: >>> ALL TESTS PASSED <<<" `
+                                              -Filelist "$FilelistsDir\dma_firmware.f"
 }
 
 # =============================================================================
@@ -411,4 +422,3 @@ if (-not $AllPassed) {
 } else {
     exit 0
 }
-

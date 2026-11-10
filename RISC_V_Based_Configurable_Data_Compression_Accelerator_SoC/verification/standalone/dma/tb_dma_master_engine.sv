@@ -482,8 +482,8 @@ module tb_dma_master_engine;
         // Test Group 1: Single-Word Read
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 1: Single-Word Read ---");
-        mem_write_word(32'h0004_0000, 32'h1234_5678);
-        start_dma_read(32'h0004_0000, 8'd0);
+        mem_write_word(32'h0001_0000, 32'h1234_5678);
+        start_dma_read(32'h0001_0000, 8'd0);
 
         // Latch read beat
         @(posedge clk);
@@ -499,10 +499,10 @@ module tb_dma_master_engine;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 2: Multiple-Word Read (Bursts) ---");
         for (i = 0; i < 8; i++) begin
-            mem_write_word(32'h0004_0100 + (i * 4), 32'hCAFE_0000 + i);
+            mem_write_word(32'h0001_0100 + (i * 4), 32'hCAFE_0000 + i);
         end
 
-        start_dma_read(32'h0004_0100, 8'd7); // 8-beat burst
+        start_dma_read(32'h0001_0100, 8'd7); // 8-beat burst
         cap_cnt = 0;
 
         while (cap_cnt < 8) begin
@@ -532,11 +532,11 @@ module tb_dma_master_engine;
         stream_data[0] = 32'hDEAD_BEEF;
         stream_strb[0] = 4'b1111;
 
-        write_dma_stream(32'h0004_0200, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0200, 8'd0, stream_data, stream_strb);
 
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1 && wr_error === 1'b0, "Single-word write completes with wr_done_o");
-        check(mem_read_word(32'h0004_0200) === 32'hDEAD_BEEF, "Memory content verified for single-word write");
+        check(mem_read_word(32'h0001_0200) === 32'hDEAD_BEEF, "Memory content verified for single-word write");
 
         // ---------------------------------------------------------------------
         // Test Group 4: Multiple-Word Write (Burst)
@@ -547,13 +547,13 @@ module tb_dma_master_engine;
             stream_strb[i] = 4'b1111;
         end
 
-        write_dma_stream(32'h0004_0300, 8'd7, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0300, 8'd7, stream_data, stream_strb);
 
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1 && wr_error === 1'b0, "8-beat write burst completes with wr_done_o");
 
         for (i = 0; i < 8; i++) begin
-            check(mem_read_word(32'h0004_0300 + (i * 4)) === (32'hBABE_0000 + i),
+            check(mem_read_word(32'h0001_0300 + (i * 4)) === (32'hBABE_0000 + i),
                   $sformatf("Memory word %0d content verified for burst write", i));
         end
 
@@ -562,36 +562,36 @@ module tb_dma_master_engine;
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 5: Partial-Byte Writes using WSTRB ---");
         // Pre-fill memory with 0xFFFFFFFF
-        mem_write_word(32'h0004_0400, 32'hFFFF_FFFF);
+        mem_write_word(32'h0001_0400, 32'hFFFF_FFFF);
 
         // Byte 0 write
         stream_data[0] = 32'h1122_3344;
         stream_strb[0] = 4'b0001; // only byte 0 (44)
-        write_dma_stream(32'h0004_0400, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0400, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
-        check(mem_read_word(32'h0004_0400) === 32'hFFFF_FF44, "WSTRB 4'b0001 modifies only byte 0");
+        check(mem_read_word(32'h0001_0400) === 32'hFFFF_FF44, "WSTRB 4'b0001 modifies only byte 0");
 
         // Byte 1 write
         stream_data[0] = 32'h1122_3344;
         stream_strb[0] = 4'b0010; // only byte 1 (33)
-        write_dma_stream(32'h0004_0400, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0400, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
-        check(mem_read_word(32'h0004_0400) === 32'hFFFF_3344, "WSTRB 4'b0010 modifies only byte 1");
+        check(mem_read_word(32'h0001_0400) === 32'hFFFF_3344, "WSTRB 4'b0010 modifies only byte 1");
 
         // Bytes 2 & 3 write
         stream_data[0] = 32'h1122_3344;
         stream_strb[0] = 4'b1100; // bytes 2 & 3 (1122)
-        write_dma_stream(32'h0004_0400, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0400, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
-        check(mem_read_word(32'h0004_0400) === 32'h1122_3344, "WSTRB 4'b1100 modifies upper two bytes");
+        check(mem_read_word(32'h0001_0400) === 32'h1122_3344, "WSTRB 4'b1100 modifies upper two bytes");
 
         // Middle bytes 1 & 2 write on fresh word
-        mem_write_word(32'h0004_0404, 32'hAAAA_AAAA);
+        mem_write_word(32'h0001_0404, 32'hAAAA_AAAA);
         stream_data[0] = 32'h0055_6600;
         stream_strb[0] = 4'b0110;
-        write_dma_stream(32'h0004_0404, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0404, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
-        check(mem_read_word(32'h0004_0404) === 32'hAA55_66AA, "WSTRB 4'b0110 modifies middle two bytes");
+        check(mem_read_word(32'h0001_0404) === 32'hAA55_66AA, "WSTRB 4'b0110 modifies middle two bytes");
 
         // ---------------------------------------------------------------------
         // Test Group 6: AW/W Channel Backpressure
@@ -605,12 +605,12 @@ module tb_dma_master_engine;
             stream_strb[i] = 4'b1111;
         end
 
-        write_dma_stream(32'h0004_0500, 8'd3, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0500, 8'd3, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
 
         check(wr_done === 1'b1, "Write burst completed under AW and W backpressure");
         for (i = 0; i < 4; i++) begin
-            check(mem_read_word(32'h0004_0500 + (i * 4)) === (32'h9988_0000 + i),
+            check(mem_read_word(32'h0001_0500 + (i * 4)) === (32'h9988_0000 + i),
                   $sformatf("Memory word %0d intact after backpressured write", i));
         end
 
@@ -625,10 +625,10 @@ module tb_dma_master_engine;
         slave_arready_delay = 4;
         slave_rvalid_delay  = 3;
         for (i = 0; i < 4; i++) begin
-            mem_write_word(32'h0004_0600 + (i * 4), 32'h7766_0000 + i);
+            mem_write_word(32'h0001_0600 + (i * 4), 32'h7766_0000 + i);
         end
 
-        start_dma_read(32'h0004_0600, 8'd3);
+        start_dma_read(32'h0001_0600, 8'd3);
         cap_cnt = 0;
         while (cap_cnt < 4) begin
             @(posedge clk);
@@ -648,7 +648,7 @@ module tb_dma_master_engine;
         slave_rvalid_delay  = 0;
 
         // Sub-test 7B: Sink (sequencer) deasserts rd_ready mid-burst
-        start_dma_read(32'h0004_0600, 8'd3);
+        start_dma_read(32'h0001_0600, 8'd3);
         cap_cnt = 0;
         while (cap_cnt < 4) begin
             @(posedge clk);
@@ -678,7 +678,7 @@ module tb_dma_master_engine;
         stream_data[0]     = 32'h3322_1100;
         stream_strb[0]     = 4'b1111;
 
-        write_dma_stream(32'h0004_0700, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0700, 8'd0, stream_data, stream_strb);
 
         // Check that master remains busy while waiting for B
         #(CLK_PERIOD * 4);
@@ -686,7 +686,7 @@ module tb_dma_master_engine;
 
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1, "Master completes only after delayed B arrives");
-        check(mem_read_word(32'h0004_0700) === 32'h3322_1100, "Memory content confirmed for delayed B test");
+        check(mem_read_word(32'h0001_0700) === 32'h3322_1100, "Memory content confirmed for delayed B test");
         slave_bvalid_delay = 0;
 
         // ---------------------------------------------------------------------
@@ -695,14 +695,14 @@ module tb_dma_master_engine;
         $display("\n--- Test Group 9: Error Responses (SLVERR & DECERR) ---");
         // Sub-test 9A: Write SLVERR (2'b10)
         slave_bresp_val = 2'b10;
-        write_dma_stream(32'h0004_0800, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0800, 8'd0, stream_data, stream_strb);
         while (!wr_error && !wr_done) @(posedge clk);
         check(wr_error === 1'b1 && wr_done === 1'b0, "Write SLVERR asserts wr_error_o");
         check(wr_resp === 2'b10, "Write SLVERR reported in wr_resp_o");
 
         // Sub-test 9B: Write DECERR (2'b11)
         slave_bresp_val = 2'b11;
-        write_dma_stream(32'h0004_0804, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0804, 8'd0, stream_data, stream_strb);
         while (!wr_error && !wr_done) @(posedge clk);
         check(wr_error === 1'b1 && wr_done === 1'b0, "Write DECERR asserts wr_error_o");
         check(wr_resp === 2'b11, "Write DECERR reported in wr_resp_o");
@@ -710,14 +710,14 @@ module tb_dma_master_engine;
 
         // Sub-test 9C: Read SLVERR (2'b10)
         slave_rresp_val = 2'b10;
-        start_dma_read(32'h0004_0800, 8'd0);
+        start_dma_read(32'h0001_0800, 8'd0);
         while (!rd_error && !rd_done) @(posedge clk);
         check(rd_error === 1'b1 && rd_done === 1'b0, "Read SLVERR asserts rd_error_o");
         check(rd_resp === 2'b10, "Read SLVERR reported in rd_resp_o");
 
         // Sub-test 9D: Read DECERR (2'b11)
         slave_rresp_val = 2'b11;
-        start_dma_read(32'h0004_0804, 8'd0);
+        start_dma_read(32'h0001_0804, 8'd0);
         while (!rd_error && !rd_done) @(posedge clk);
         check(rd_error === 1'b1 && rd_done === 1'b0, "Read DECERR asserts rd_error_o");
         check(rd_resp === 2'b11, "Read DECERR reported in rd_resp_o");
@@ -729,7 +729,7 @@ module tb_dma_master_engine;
         $display("\n--- Test Group 10: Abort Handling ---");
         // Sub-test 10A: Abort during active read
         slave_arready_delay = 10;
-        start_dma_read(32'h0004_0900, 8'd3);
+        start_dma_read(32'h0001_0900, 8'd3);
         @(posedge clk);
         check(rd_busy === 1'b1, "Read engine is active prior to abort");
         abort <= 1'b1;
@@ -745,7 +745,7 @@ module tb_dma_master_engine;
         stream_data[0]      = 32'h1212_1212;
         stream_strb[0]      = 4'b1111;
         @(posedge clk);
-        req_wr_addr  <= 32'h0004_0904;
+        req_wr_addr  <= 32'h0001_0904;
         req_wr_len   <= 8'd0;
         req_wr_start <= 1'b1;
         @(posedge clk);
@@ -761,8 +761,8 @@ module tb_dma_master_engine;
         slave_awready_delay = 0;
 
         // Sub-test 10C: Confirm recovery after abort
-        mem_write_word(32'h0004_0910, 32'hA5A5_5A5A);
-        start_dma_read(32'h0004_0910, 8'd0);
+        mem_write_word(32'h0001_0910, 32'hA5A5_5A5A);
+        start_dma_read(32'h0001_0910, 8'd0);
         while (!rd_done) @(posedge clk);
         check(rd_done === 1'b1, "Normal read transaction passes after abort recovery");
 
@@ -772,7 +772,7 @@ module tb_dma_master_engine;
         $display("\n--- Test Group 11: Dynamic Reset ---");
         slave_awready_delay = 8;
         @(posedge clk);
-        req_wr_addr  <= 32'h0004_0A00;
+        req_wr_addr  <= 32'h0001_0A00;
         req_wr_len   <= 8'd3;
         req_wr_start <= 1'b1;
         @(posedge clk);
@@ -796,33 +796,33 @@ module tb_dma_master_engine;
         // Verify recovery after reset
         stream_data[0] = 32'h7777_8888;
         stream_strb[0] = 4'b1111;
-        write_dma_stream(32'h0004_0A00, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0A00, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1, "Transaction passes cleanly after reset recovery");
-        check(mem_read_word(32'h0004_0A00) === 32'h7777_8888, "Post-reset written memory verified");
+        check(mem_read_word(32'h0001_0A00) === 32'h7777_8888, "Post-reset written memory verified");
 
         // ---------------------------------------------------------------------
         // Test Group 12: Boundary and Alignment Conditions
         // ---------------------------------------------------------------------
         $display("\n--- Test Group 12: Boundary & Alignment Conditions ---");
-        // Test 12A: End of DMEM boundary (0x0007_FFFC)
+        // Test 12A: End of DMEM boundary (0x0002_FFFC)
         stream_data[0] = 32'hED00_D333;
         stream_strb[0] = 4'b1111;
-        write_dma_stream(32'h0007_FFFC, 8'd0, stream_data, stream_strb);
+        write_dma_stream(32'h0002_FFFC, 8'd0, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
-        check(wr_done === 1'b1, "Single-word write to end-of-DMEM (0x0007_FFFC) passes");
-        check(mem_read_word(32'h0007_FFFC) === 32'hED00_D333, "End-of-DMEM memory word verified");
+        check(wr_done === 1'b1, "Single-word write to end-of-DMEM (0x0002_FFFC) passes");
+        check(mem_read_word(32'h0002_FFFC) === 32'hED00_D333, "End-of-DMEM memory word verified");
 
         // Test 12B: 16-beat burst crossing sub-boundary
         for (i = 0; i < 16; i++) begin
             stream_data[i] = 32'hB000_0000 + i;
             stream_strb[i] = 4'b1111;
         end
-        write_dma_stream(32'h0004_0F80, 8'd15, stream_data, stream_strb);
+        write_dma_stream(32'h0001_0F80, 8'd15, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1, "16-beat burst across sub-boundary passes");
         for (i = 0; i < 16; i++) begin
-            check(mem_read_word(32'h0004_0F80 + (i * 4)) === (32'hB000_0000 + i),
+            check(mem_read_word(32'h0001_0F80 + (i * 4)) === (32'hB000_0000 + i),
                   $sformatf("16-beat word %0d verified in memory", i));
         end
 
@@ -831,19 +831,19 @@ module tb_dma_master_engine;
             stream_data[i] = 32'h6400_0000 + (i * 3);
             stream_strb[i] = 4'b1111;
         end
-        write_dma_stream(32'h0004_1000, 8'd63, stream_data, stream_strb);
+        write_dma_stream(32'h0001_1000, 8'd63, stream_data, stream_strb);
         while (!wr_done) @(posedge clk);
         check(wr_done === 1'b1, "64-beat (256-byte max DMA size) burst write completes");
 
         for (i = 0; i < 64; i++) begin
-            if (mem_read_word(32'h0004_1000 + (i * 4)) !== (32'h6400_0000 + (i * 3))) begin
+            if (mem_read_word(32'h0001_1000 + (i * 4)) !== (32'h6400_0000 + (i * 3))) begin
                 check(0, $sformatf("64-beat burst mismatch at word %0d", i));
             end
         end
         check(1, "All 64 words (256 bytes) verified correct in memory");
 
         // Read back the 64 words using a 64-beat burst read
-        start_dma_read(32'h0004_1000, 8'd63);
+        start_dma_read(32'h0001_1000, 8'd63);
         cap_cnt = 0;
         while (cap_cnt < 64) begin
             @(posedge clk);

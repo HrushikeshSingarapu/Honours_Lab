@@ -183,8 +183,8 @@ module tb_soc_dma_integration;
     // SoC Top Instance (DUT)
     // =========================================================================
     soc_top #(
-        .IMEM_DEPTH(65536),
-        .DMEM_DEPTH(65536)
+        .IMEM_DEPTH(16384),
+        .DMEM_DEPTH(32768)
     ) u_soc_top (
         .clk             (clk),
         .rst_n           (rst_n),
@@ -327,8 +327,8 @@ module tb_soc_dma_integration;
     // =========================================================================
     // Address Map Definitions
     // =========================================================================
-    localparam [31:0] DMEM_BASE_ADDR        = 32'h0004_0000;
-    localparam [31:0] DMA_BASE_ADDR         = 32'h1001_1000;
+    localparam [31:0] DMEM_BASE_ADDR        = 32'h0001_0000;
+    localparam [31:0] DMA_BASE_ADDR         = 32'h000B_0000;
 
     // DMA Register Offsets
     localparam [31:0] REG_DMA_CONTROL       = DMA_BASE_ADDR + 32'h000;
@@ -582,21 +582,21 @@ module tb_soc_dma_integration;
         check("DMA STATUS reset value is 0x0000_0000", rdata == 32'h0000_0000);
 
         cpu_read(REG_DMA_SRC_ADDR, rdata, resp);
-        check("DMA SRC_ADDR reads default 0x0004_0000", rdata == 32'h0004_0000);
+        check("DMA SRC_ADDR reads default 0x0001_0000", rdata == 32'h0001_0000);
 
         cpu_read(REG_DMA_DST_ADDR, rdata, resp);
-        check("DMA DST_ADDR reads default 0x0004_0100", rdata == 32'h0004_0100);
+        check("DMA DST_ADDR reads default 0x0001_0100", rdata == 32'h0001_0100);
 
         // Write configuration registers
-        cpu_write(REG_DMA_SRC_ADDR, 32'h0004_1000, 4'hF, resp);
+        cpu_write(REG_DMA_SRC_ADDR, 32'h0001_1000, 4'hF, resp);
         check("Write DMA SRC_ADDR completes OKAY", resp == 2'b00);
         cpu_read(REG_DMA_SRC_ADDR, rdata, resp);
-        check("Readback DMA SRC_ADDR is 0x0004_1000", rdata == 32'h0004_1000);
+        check("Readback DMA SRC_ADDR is 0x0001_1000", rdata == 32'h0001_1000);
 
-        cpu_write(REG_DMA_DST_ADDR, 32'h0004_2000, 4'hF, resp);
+        cpu_write(REG_DMA_DST_ADDR, 32'h0001_2000, 4'hF, resp);
         check("Write DMA DST_ADDR completes OKAY", resp == 2'b00);
         cpu_read(REG_DMA_DST_ADDR, rdata, resp);
-        check("Readback DMA DST_ADDR is 0x0004_2000", rdata == 32'h0004_2000);
+        check("Readback DMA DST_ADDR is 0x0001_2000", rdata == 32'h0001_2000);
 
         cpu_write(REG_DMA_INPUT_LEN, 32'd16, 4'hF, resp);
         check("Write DMA INPUT_LEN (16) completes OKAY", resp == 2'b00);
@@ -614,16 +614,16 @@ module tb_soc_dma_integration;
         $display("");
         $display("--- Test Group 2: End-to-End Compression Transfer (16 -> 8 bytes) ---");
 
-        // Step 2.1: CPU populates input buffer in SoC DMEM at 0x0004_1000
+        // Step 2.1: CPU populates input buffer in SoC DMEM at 0x0001_1000
         // Data: 4x 0x11, 4x 0x22, 4x 0x33, 4x 0x44 (little endian words)
-        cpu_write(32'h0004_1000, 32'h1111_1111, 4'hF, resp);
-        cpu_write(32'h0004_1004, 32'h2222_2222, 4'hF, resp);
-        cpu_write(32'h0004_1008, 32'h3333_3333, 4'hF, resp);
-        cpu_write(32'h0004_100C, 32'h4444_4444, 4'hF, resp);
+        cpu_write(32'h0001_1000, 32'h1111_1111, 4'hF, resp);
+        cpu_write(32'h0001_1004, 32'h2222_2222, 4'hF, resp);
+        cpu_write(32'h0001_1008, 32'h3333_3333, 4'hF, resp);
+        cpu_write(32'h0001_100C, 32'h4444_4444, 4'hF, resp);
 
-        // Clear destination DMEM at 0x0004_2000
-        cpu_write(32'h0004_2000, 32'h0000_0000, 4'hF, resp);
-        cpu_write(32'h0004_2004, 32'h0000_0000, 4'hF, resp);
+        // Clear destination DMEM at 0x0001_2000
+        cpu_write(32'h0001_2000, 32'h0000_0000, 4'hF, resp);
+        cpu_write(32'h0001_2004, 32'h0000_0000, 4'hF, resp);
 
         // Step 2.2: CPU starts DMA compression (MODE = 0, START = 1)
         check("dma_irq initially low", dma_irq === 1'b0);
@@ -654,17 +654,17 @@ module tb_soc_dma_integration;
         @(posedge clk);
         check("dma_irq successfully deasserted after W1C clear", dma_irq === 1'b0);
 
-        // Step 2.6: Verify compressed records in SoC DMEM at 0x0004_2000
+        // Step 2.6: Verify compressed records in SoC DMEM at 0x0001_2000
         // Record 0: [4, 0x11] = 16'h1104
         // Record 1: [4, 0x22] = 16'h2204
-        // Word 0 (0x0004_2000): 32'h2204_1104
-        cpu_read(32'h0004_2000, rdata, resp);
+        // Word 0 (0x0001_2000): 32'h2204_1104
+        cpu_read(32'h0001_2000, rdata, resp);
         check("Destination DMEM Word 0 matches [4, 0x11] & [4, 0x22]", rdata == 32'h2204_1104);
 
         // Record 2: [4, 0x33] = 16'h3304
         // Record 3: [4, 0x44] = 16'h4404
-        // Word 1 (0x0004_2004): 32'h4404_3304
-        cpu_read(32'h0004_2004, rdata, resp);
+        // Word 1 (0x0001_2004): 32'h4404_3304
+        cpu_read(32'h0001_2004, rdata, resp);
         check("Destination DMEM Word 1 matches [4, 0x33] & [4, 0x44]", rdata == 32'h4404_3304);
 
         // =====================================================================
@@ -673,19 +673,19 @@ module tb_soc_dma_integration;
         $display("");
         $display("--- Test Group 3: End-to-End Decompression Transfer (8 -> 16 bytes) ---");
 
-        // Clear decompression target in DMEM at 0x0004_3000
-        cpu_write(32'h0004_3000, 32'h0000_0000, 4'hF, resp);
-        cpu_write(32'h0004_3004, 32'h0000_0000, 4'hF, resp);
-        cpu_write(32'h0004_3008, 32'h0000_0000, 4'hF, resp);
-        cpu_write(32'h0004_300C, 32'h0000_0000, 4'hF, resp);
+        // Clear decompression target in DMEM at 0x0001_3000
+        cpu_write(32'h0001_3000, 32'h0000_0000, 4'hF, resp);
+        cpu_write(32'h0001_3004, 32'h0000_0000, 4'hF, resp);
+        cpu_write(32'h0001_3008, 32'h0000_0000, 4'hF, resp);
+        cpu_write(32'h0001_300C, 32'h0000_0000, 4'hF, resp);
 
         // Configure DMA for decompression:
-        // SRC = 0x0004_2000 (compressed output from Test 2)
-        // DST = 0x0004_3000 (new decompressed buffer)
+        // SRC = 0x0001_2000 (compressed output from Test 2)
+        // DST = 0x0001_3000 (new decompressed buffer)
         // INPUT_LEN = 8 bytes
         // MODE = 1 (Decompression)
-        cpu_write(REG_DMA_SRC_ADDR, 32'h0004_2000, 4'hF, resp);
-        cpu_write(REG_DMA_DST_ADDR, 32'h0004_3000, 4'hF, resp);
+        cpu_write(REG_DMA_SRC_ADDR, 32'h0001_2000, 4'hF, resp);
+        cpu_write(REG_DMA_DST_ADDR, 32'h0001_3000, 4'hF, resp);
         cpu_write(REG_DMA_INPUT_LEN, 32'd8, 4'hF, resp);
 
         // Start decompression (MODE = 1, START = 1 -> CONTROL = 0x3)
@@ -707,16 +707,16 @@ module tb_soc_dma_integration;
         check("dma_irq cleared", dma_irq === 1'b0);
 
         // Verify all 16 decompressed bytes match original data byte-for-byte
-        cpu_read(32'h0004_3000, rdata, resp);
+        cpu_read(32'h0001_3000, rdata, resp);
         check("Decompressed Word 0 matches original 0x1111_1111", rdata == 32'h1111_1111);
 
-        cpu_read(32'h0004_3004, rdata, resp);
+        cpu_read(32'h0001_3004, rdata, resp);
         check("Decompressed Word 1 matches original 0x2222_2222", rdata == 32'h2222_2222);
 
-        cpu_read(32'h0004_3008, rdata, resp);
+        cpu_read(32'h0001_3008, rdata, resp);
         check("Decompressed Word 2 matches original 0x3333_3333", rdata == 32'h3333_3333);
 
-        cpu_read(32'h0004_300C, rdata, resp);
+        cpu_read(32'h0001_300C, rdata, resp);
         check("Decompressed Word 3 matches original 0x4444_4444", rdata == 32'h4444_4444);
 
         // =====================================================================
@@ -726,16 +726,16 @@ module tb_soc_dma_integration;
         $display("--- Test Group 4: Odd Length Transfer with Partial Final Word ---");
 
         // 5 bytes of 0x55:
-        // Word 0 (0x0004_1040): 4x 0x55 = 32'h5555_5555
-        // Word 1 (0x0004_1044): 1x 0x55 = 32'h0000_0055 (byte 0 only)
-        cpu_write(32'h0004_1040, 32'h5555_5555, 4'hF, resp);
-        cpu_write(32'h0004_1044, 32'h0000_0055, 4'hF, resp);
+        // Word 0 (0x0001_1040): 4x 0x55 = 32'h5555_5555
+        // Word 1 (0x0001_1044): 1x 0x55 = 32'h0000_0055 (byte 0 only)
+        cpu_write(32'h0001_1040, 32'h5555_5555, 4'hF, resp);
+        cpu_write(32'h0001_1044, 32'h0000_0055, 4'hF, resp);
 
         // Pre-fill destination with sentinel pattern 32'hDEAD_BEEF
-        cpu_write(32'h0004_2040, 32'hDEAD_BEEF, 4'hF, resp);
+        cpu_write(32'h0001_2040, 32'hDEAD_BEEF, 4'hF, resp);
 
-        cpu_write(REG_DMA_SRC_ADDR, 32'h0004_1040, 4'hF, resp);
-        cpu_write(REG_DMA_DST_ADDR, 32'h0004_2040, 4'hF, resp);
+        cpu_write(REG_DMA_SRC_ADDR, 32'h0001_1040, 4'hF, resp);
+        cpu_write(REG_DMA_DST_ADDR, 32'h0001_2040, 4'hF, resp);
         cpu_write(REG_DMA_INPUT_LEN, 32'd5, 4'hF, resp);
 
         // Start compression (MODE = 0, START = 1)
@@ -758,7 +758,7 @@ module tb_soc_dma_integration;
 
         // Verify partial write: only lower 2 bytes modified (count=5, sym=0x55) = 16'h5505
         // Upper 2 bytes must remain intact (0xDEAD) from pre-fill!
-        cpu_read(32'h0004_2040, rdata, resp);
+        cpu_read(32'h0001_2040, rdata, resp);
         check("Partial word destination contains [5, 0x55] and preserves upper bytes", rdata == 32'hDEAD_5505);
 
         // =====================================================================
