@@ -17,6 +17,7 @@ work/
 transcript
 *.wlf
 modelsim.ini
+sim_build/
 
 # Waveform dumps
 *.vcd
@@ -26,6 +27,8 @@ modelsim.ini
 
 # Simulation logs and diagnostics
 *.log
+tr_db.log
+simulation/logs/
 sim.err
 ucli.key
 novas_dump.log
@@ -37,5 +40,5 @@ verdiLog/
 vcd2fsdbLog/
 *.swp
 *.swo
-
-
+__pycache__/
+*.py[cod]
